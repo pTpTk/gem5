@@ -1,0 +1,3 @@
+system.cpu.executeStats0.numBranches                0                       # Number of branches executed (Count)
+system.cpu.fetchStats0.numBranches            2002252                       # Number of branches fetched (Count)
+system.cpu.fetchStats0.branchRate            0.001456                       # Number of branch fetches per cycle (Ratio)
