@@ -1,6 +1,4 @@
-# -*- mode:python -*-
-
-# Copyright (c) 2018 Inria
+# Copyright (c) 2018-2020 Inria
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,25 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Import('*')
+from ReplacementPolicies import BaseReplacementPolicy
 
-SimObject('ReplacementPolicies.py', sim_objects=[
-    'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
-    'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP', 'BRRIPRP', 'SHiPRP',
-    'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP', 'NMRU'])
-
-Source('bip_rp.cc')
-Source('brrip_rp.cc')
-Source('dueling_rp.cc')
-Source('fifo_rp.cc')
-Source('lfu_rp.cc')
-Source('lru_rp.cc')
-Source('mru_rp.cc')
-Source('random_rp.cc')
-Source('second_chance_rp.cc')
-Source('ship_rp.cc')
-Source('tree_plru_rp.cc')
-Source('weighted_lru_rp.cc')
-Source('nmru.cc')
-
-GTest('replaceable_entry.test', 'replaceable_entry.test.cc')
+class NMRU(BaseReplacementPolicy):
+    type = "NMRU"
+    cxx_class = "gem5::replacement_policy::NMRU"
+    cxx_header = "mem/cache/replacement_policies/nmru.hh"
