@@ -106,7 +106,7 @@ NMRU::getVictim(const ReplacementCandidates& candidates) const
     int idx = random_mt.random<int>(0, lastIndex-1);
     if(idx >= MRUIndex)
         ++idx;
-    
+
     return candidates[idx];
 }
 

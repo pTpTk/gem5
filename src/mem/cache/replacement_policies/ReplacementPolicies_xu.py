@@ -26,6 +26,7 @@
 
 from ReplacementPolicies import BaseReplacementPolicy
 
+
 class NMRU(BaseReplacementPolicy):
     type = "NMRU"
     cxx_class = "gem5::replacement_policy::NMRU"
