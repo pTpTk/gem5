@@ -445,6 +445,12 @@ let {{
                                      ezfBit, ext)"
         cond_control_flag_init = "flags[IsCondControl] = flags[IsControl];"
 
+    class CondRegOpS(RegOp):
+        abstract = True
+        cond_check = "checkCondition(ccFlagBits | cfofBits | dfBit | ecfBit | \
+                                     ezfBit, ext)"
+        cond_control_flag_init = "flags[IsCondControlS] = flags[IsControl];"
+
     class RdRegOp(RegOp):
         operand_types = (FoldedDestOp, FoldedSrc1Op)
         abstract = True
@@ -1163,6 +1169,10 @@ let {{
         code = 'DoubleBits = PSrcReg1 ^ op2;'
 
     class Wrip(WrRegOp, CondRegOp):
+        code = 'NRIP = ((SrcReg1 + sop2) & mask(dataSize * 8)) + CSBase;'
+        else_code = "NRIP = NRIP;"
+
+    class Wrips(WrRegOp, CondRegOpS):
         code = 'NRIP = ((SrcReg1 + sop2) & mask(dataSize * 8)) + CSBase;'
         else_code = "NRIP = NRIP;"
 
