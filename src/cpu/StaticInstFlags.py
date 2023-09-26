@@ -63,6 +63,7 @@ class StaticInstFlags(Enum):
         "IsDirectControl",  # PC relative control transfer.
         "IsIndirectControl",  # Register indirect control transfer.
         "IsCondControl",  # Conditional control transfer.
+        "IsCondControlS",  # Special conditional control transfer.
         "IsUncondControl",  # Unconditional control transfer.
         "IsCall",  # Subroutine call.
         "IsReturn",  # Subroutine return.

@@ -36,7 +36,7 @@
 categories = [
     "call",
     "conditional_jump",
-    "conditional_jump_s"
+    "conditional_jump_s",
     "interrupts_and_exceptions",
     "jump",
     "loop",

@@ -498,6 +498,13 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     }
 
     ThreadID tid = inst->threadNumber;
+
+    if (inst->isCondCtrlS()) {
+        fatal("[tid:%i] [Sn:%llu] Special branch at PC %#x\n",
+                tid, inst->seqNum, inst->pcState().instAddr());
+        exit(0);
+    }
+
     predict_taken = branchPred->predict(inst->staticInst, inst->seqNum,
                                         next_pc, tid);
 
