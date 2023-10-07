@@ -521,10 +521,7 @@
             }
             0x7: XLAT();
         }
-        0x1B: decode OPCODE_OP_BOTTOM3 {
-            0x5:JNLS(Jb);
-            default: WarnUnimpl::x87();
-        }
+        #include "x87.isa"
         0x1C: decode OPCODE_OP_BOTTOM3 {
             0x0: LOOPNE(Jb);
             0x1: LOOPE(Jb);

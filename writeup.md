@@ -47,3 +47,28 @@ HMMMMMMMMMMmmmmmmmmmm....
 Maybe the reference hints the compiler to place the CCid[v] into a register? And the value read and write pair just results in two memory operations? I suppose this is a programming tip and potentially I can try to add this optimization into compilers?
 
 I'll keep doing this project since the main point is to familiarize myself with gem5 and researching.
+
+2023/09/26
+### Propagating the flag to C code
+I added the flag in StaticInstFlags.py and created corresponding static and dynamic instruction methods. Then in the fetch stage I would issue a fatal message upon seeing the flag.
+
+### Binary file revisited
+The new instruction should be 0xDD instead of 0xED. Now stepping 1 is complete!
+
+2023/10/06
+## Stepping 2
+The goal of this step is to fetch instructions from both paths.
+
+### Change the fetch stage
+Fetching is done in lookupAndUpdateNextPC(). The class needs a structure holding the branchS status. Specifically, it records if there is a branchS in progress, which path is executing, the next_pc for both paths. The dynamic instruction generated needs a field indicating if the instruction is fetched following branchS.
+
+### Branch prediction complications
+Fetching istructions from both paths requires BTB hits. Currently I'm mimicing regular branch code for not taken in that case. This definitely needs more work.
+
+The branch prediction is also complaining upon seeing a branchS. I'll take a look tomorrow.
+
+2023/10/07
+### Branch prediction complications continued
+btbUpdate() does not update BTB lol. Removing the unnecessary stuff solves the issue. With that said, since BTB does not have the target cached at first, I need to make sure the "not taken prediction" case works and instructions are fetched sequentially.
+
+### Update BTB

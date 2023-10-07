@@ -47,6 +47,7 @@
 #include "cpu/o3/limits.hh"
 #include "debug/Activity.hh"
 #include "debug/Decode.hh"
+#include "debug/BranchS.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/full_system.hh"
@@ -653,6 +654,9 @@ Decode::decodeInsts(ThreadID tid)
 
         insts_to_decode.pop();
 
+        // DPRINTF(BranchS, "[tid:%i] Decode stage processing instruction [sn:%lli] with "
+        //         "PC %s\n", tid, inst->seqNum, inst->pcState());
+
         DPRINTF(Decode, "[tid:%i] Processing instruction [sn:%lli] with "
                 "PC %s\n", tid, inst->seqNum, inst->pcState());
 
@@ -716,6 +720,7 @@ Decode::decodeInsts(ThreadID tid)
 
             std::unique_ptr<PCStateBase> target = inst->branchTarget();
             if (*target != inst->readPredTarg()) {
+                // TODO: How should this interact with branchS?
                 ++stats.branchMispred;
 
                 // Might want to set some sort of boolean and just do

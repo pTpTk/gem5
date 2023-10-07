@@ -90,6 +90,9 @@ class BPredUnit : public SimObject
     bool predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                  PCStateBase &pc, ThreadID tid);
 
+    bool predictS(const StaticInstPtr &inst, const InstSeqNum &seqNum,
+                 PCStateBase &pc, ThreadID tid);
+
     // @todo: Rename this function.
     virtual void uncondBranch(ThreadID tid, Addr pc, void * &bp_history) = 0;
 

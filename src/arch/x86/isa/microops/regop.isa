@@ -449,7 +449,8 @@ let {{
         abstract = True
         cond_check = "checkCondition(ccFlagBits | cfofBits | dfBit | ecfBit | \
                                      ezfBit, ext)"
-        cond_control_flag_init = "flags[IsCondControlS] = flags[IsControl];"
+        cond_control_flag_init = "flags[IsCondControlS] = flags[IsCondControl] \
+                                  = flags[IsControl];"
 
     class RdRegOp(RegOp):
         operand_types = (FoldedDestOp, FoldedSrc1Op)

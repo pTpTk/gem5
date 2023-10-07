@@ -95,6 +95,7 @@ binary = os.path.join(
     thispath,
     "../../../",
     "gem5_101/Hw4/main.x",
+    # "gem5_101/Hw4/main.bak",
 )
 
 system.workload = SEWorkload.init_compatible(binary)

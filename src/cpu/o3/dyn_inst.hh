@@ -63,6 +63,7 @@
 #include "cpu/static_inst.hh"
 #include "cpu/translation.hh"
 #include "debug/HtmCpu.hh"
+#include "debug/BranchS.hh"
 
 namespace gem5
 {
@@ -183,6 +184,7 @@ class DynInst : public ExecContext, public RefCounted
         Predicate,
         MemAccPredicate,
         PredTaken,
+        PredS,
         IsStrictlyOrdered,
         ReqMade,
         MemOpDone,
@@ -524,12 +526,22 @@ class DynInst : public ExecContext, public RefCounted
         instFlags[PredTaken] = predicted_taken;
     }
 
+    void
+    setPredS(bool predicted_s)
+    {
+        instFlags[PredS] = predicted_s;
+    }
+
     /** Returns whether the instruction mispredicted. */
     bool
     mispredicted()
     {
         std::unique_ptr<PCStateBase> next_pc(pc->clone());
         staticInst->advancePC(*next_pc);
+        if(isCondCtrlS()) {
+            DPRINTF(BranchS,"inst->next_PC = %s\n", *next_pc);
+            DPRINTF(BranchS, "inst->pred_PC = %s\n\n", *predPC);
+        }
         return *next_pc != *predPC;
     }
 

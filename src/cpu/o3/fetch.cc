@@ -59,6 +59,7 @@
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
 #include "debug/Fetch.hh"
+#include "debug/BranchS.hh"
 #include "debug/O3CPU.hh"
 #include "debug/O3PipeView.hh"
 #include "mem/packet.hh"
@@ -488,7 +489,38 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     // Do branch prediction check here.
     // A bit of a misnomer...next_PC is actually the current PC until
     // this function updates it.
-    bool predict_taken;
+    bool predict_taken, predict_s_hit;
+
+    ThreadID tid = inst->threadNumber;
+
+    // if (fetchBranchSStatus[tid].branchS) {
+    //     fatal("[tid:%i] [Sn:%llu] HERE!!!"
+    //             "yet\n", tid, inst->seqNum);
+    //     //TODO:: fix me
+    //     if (inst->isControl()) {
+    //         fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
+    //             "yet\n", tid, inst->seqNum);
+    //     }
+
+    //     if (fetchBranchSStatus[tid].branchSTaken) {
+    //         inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextTaken));
+            
+    //         fetchBranchSStatus[tid].branchSTaken = false;
+    //         set(next_pc, *fetchBranchSStatus[tid].nextNTaken);
+    //     } else {
+    //         inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
+            
+    //         fetchBranchSStatus[tid].branchSTaken = true;
+    //         set(next_pc, *fetchBranchSStatus[tid].nextTaken);
+    //     }
+
+    //     //TODO:: temp fix hurts performance
+    //     return true;
+    // }
+
+    if (inst->isCondCtrlS()) {
+        assert(inst->isCondCtrl());
+    }
 
     if (!inst->isControl()) {
         inst->staticInst->advancePC(next_pc);
@@ -497,13 +529,41 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
         return false;
     }
 
-    ThreadID tid = inst->threadNumber;
-
     if (inst->isCondCtrlS()) {
-        fatal("[tid:%i] [Sn:%llu] Special branch at PC %#x\n",
-                tid, inst->seqNum, inst->pcState().instAddr());
-        exit(0);
+        assert(inst->isCondCtrl());
     }
+    //     set(fetchBranchSStatus[tid].nextNTaken, next_pc);
+
+    //     // return true if branch target resolves
+    //     predict_s_hit = branchPred->predictS(inst->staticInst, 
+    //                                          inst->seqNum, next_pc, tid);
+
+    //     // fall back to regular branch not taken
+    //     if (!predict_s_hit) {
+    //         // fatal("[tid:%i] [Sn:%llu] BTB miss, can't handle that"
+    //         //     "yet\n", tid, inst->seqNum);
+
+    //         DPRINTF(BranchS, "[tid:%i] [sn:%llu] BranchS at PC %#x "
+    //             "can't find branch target\n",
+    //             tid, inst->seqNum, inst->pcState().instAddr());
+
+    //         inst->setPredTarg(next_pc);
+    //         inst->setPredTaken(false);
+    //         return false;
+    //     }
+
+    //     fetchBranchSStatus[tid].branchS = true;
+    //     fetchBranchSStatus[tid].branchSTaken = true;
+
+    //     set(fetchBranchSStatus[tid].nextTaken, next_pc);
+    //     inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
+
+    //     inst->setPredTarg(next_pc);
+    //     inst->setPredS(true);
+
+    //     //TODO::temp solution hurts performance
+    //     return true;
+    // }
 
     predict_taken = branchPred->predict(inst->staticInst, inst->seqNum,
                                         next_pc, tid);

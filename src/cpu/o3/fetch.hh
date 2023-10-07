@@ -182,12 +182,27 @@ class Fetch
         NoGoodAddr
     };
 
+    struct FetchBranchSStatus
+    {
+        bool branchS;
+        bool branchSTaken;
+        std::unique_ptr<PCStateBase> nextTaken;
+        std::unique_ptr<PCStateBase> nextNTaken;
+
+        FetchBranchSStatus()
+        : branchS(false), branchSTaken(false)
+        {}
+    };
+
   private:
     /** Fetch status. */
     FetchStatus _status;
 
     /** Per-thread status. */
     ThreadStatus fetchStatus[MaxThreads];
+
+    /** Per-thread special branch status */
+    FetchBranchSStatus fetchBranchSStatus[MaxThreads];
 
     /** Fetch policy. */
     SMTFetchPolicy fetchPolicy;
