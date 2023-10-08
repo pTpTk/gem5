@@ -493,30 +493,29 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
 
     ThreadID tid = inst->threadNumber;
 
-    // if (fetchBranchSStatus[tid].branchS) {
-    //     fatal("[tid:%i] [Sn:%llu] HERE!!!"
-    //             "yet\n", tid, inst->seqNum);
-    //     //TODO:: fix me
-    //     if (inst->isControl()) {
-    //         fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
-    //             "yet\n", tid, inst->seqNum);
-    //     }
+    if (fetchBranchSStatus[tid].branchS) {
+        fatal("[tid:%i] [Sn:%llu] HERE!!!"
+                "yet\n", tid, inst->seqNum);
+        //TODO:: fix me
+        if (inst->isControl()) {
+            fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
+                "yet\n", tid, inst->seqNum);
+        }
 
-    //     if (fetchBranchSStatus[tid].branchSTaken) {
-    //         inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextTaken));
+        if (fetchBranchSStatus[tid].branchSTaken) {
+            inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextTaken));
             
-    //         fetchBranchSStatus[tid].branchSTaken = false;
-    //         set(next_pc, *fetchBranchSStatus[tid].nextNTaken);
-    //     } else {
-    //         inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
+            fetchBranchSStatus[tid].branchSTaken = false;
+            set(next_pc, *fetchBranchSStatus[tid].nextNTaken);
+        } else {
+            inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
             
-    //         fetchBranchSStatus[tid].branchSTaken = true;
-    //         set(next_pc, *fetchBranchSStatus[tid].nextTaken);
-    //     }
+            fetchBranchSStatus[tid].branchSTaken = true;
+            set(next_pc, *fetchBranchSStatus[tid].nextTaken);
+        }
 
-    //     //TODO:: temp fix hurts performance
-    //     return true;
-    // }
+        return true;
+    }
 
     if (inst->isCondCtrlS()) {
         assert(inst->isCondCtrl());
@@ -530,40 +529,38 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     }
 
     if (inst->isCondCtrlS()) {
-        assert(inst->isCondCtrl());
+        set(fetchBranchSStatus[tid].nextNTaken, next_pc);
+
+        // return true if branch target resolves
+        predict_s_hit = branchPred->predictS(inst->staticInst, 
+                                             inst->seqNum, next_pc, tid);
+
+        // fall back to regular branch not taken
+        if (!predict_s_hit) {
+            // fatal("[tid:%i] [Sn:%llu] BTB miss, can't handle that"
+            //     "yet\n", tid, inst->seqNum);
+
+            DPRINTF(BranchS, "[tid:%i] [sn:%llu] BranchS at PC %#x "
+                "can't find branch target\n",
+                tid, inst->seqNum, inst->pcState().instAddr());
+
+            inst->setPredTarg(next_pc);
+            inst->setPredTaken(false);
+            return false;
+        }
+
+        fetchBranchSStatus[tid].branchS = true;
+        fetchBranchSStatus[tid].branchSTaken = true;
+
+        set(fetchBranchSStatus[tid].nextTaken, next_pc);
+        inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
+
+        inst->setPredTarg(next_pc);
+        inst->setPredS(true);
+
+        //TODO::temp solution hurts performance
+        return true;
     }
-    //     set(fetchBranchSStatus[tid].nextNTaken, next_pc);
-
-    //     // return true if branch target resolves
-    //     predict_s_hit = branchPred->predictS(inst->staticInst, 
-    //                                          inst->seqNum, next_pc, tid);
-
-    //     // fall back to regular branch not taken
-    //     if (!predict_s_hit) {
-    //         // fatal("[tid:%i] [Sn:%llu] BTB miss, can't handle that"
-    //         //     "yet\n", tid, inst->seqNum);
-
-    //         DPRINTF(BranchS, "[tid:%i] [sn:%llu] BranchS at PC %#x "
-    //             "can't find branch target\n",
-    //             tid, inst->seqNum, inst->pcState().instAddr());
-
-    //         inst->setPredTarg(next_pc);
-    //         inst->setPredTaken(false);
-    //         return false;
-    //     }
-
-    //     fetchBranchSStatus[tid].branchS = true;
-    //     fetchBranchSStatus[tid].branchSTaken = true;
-
-    //     set(fetchBranchSStatus[tid].nextTaken, next_pc);
-    //     inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
-
-    //     inst->setPredTarg(next_pc);
-    //     inst->setPredS(true);
-
-    //     //TODO::temp solution hurts performance
-    //     return true;
-    // }
 
     predict_taken = branchPred->predict(inst->staticInst, inst->seqNum,
                                         next_pc, tid);

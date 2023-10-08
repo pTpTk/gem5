@@ -538,10 +538,6 @@ class DynInst : public ExecContext, public RefCounted
     {
         std::unique_ptr<PCStateBase> next_pc(pc->clone());
         staticInst->advancePC(*next_pc);
-        if(isCondCtrlS()) {
-            DPRINTF(BranchS,"inst->next_PC = %s\n", *next_pc);
-            DPRINTF(BranchS, "inst->pred_PC = %s\n\n", *predPC);
-        }
         return *next_pc != *predPC;
     }
 

@@ -223,7 +223,7 @@
             0x0: JS(Jb);
             0x1: JNS(Jb);
             0x2: JP(Jb);
-            0x3: JNP(Jb);
+            0x3: JNLS(Jb);
             0x4: JL(Jb);
             0x5: JNL(Jb);
             0x6: JLE(Jb);
@@ -521,7 +521,16 @@
             }
             0x7: XLAT();
         }
-        #include "x87.isa"
+        0x1B: decode OPCODE_OP_BOTTOM3 {
+            0x0: WarnUnimpl::JSS();
+            0x1: WarnUnimpl::JNSS();
+            0x2: WarnUnimpl::JPS();
+            0x3: WarnUnimpl::JNPS();
+            0x4: WarnUnimpl::JLS();
+            0x5: JNL(Jb);
+            0x6: WarnUnimpl::JLES();
+            0x7: WarnUnimpl::JNLES();
+        }
         0x1C: decode OPCODE_OP_BOTTOM3 {
             0x0: LOOPNE(Jb);
             0x1: LOOPE(Jb);

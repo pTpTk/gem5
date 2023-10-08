@@ -72,3 +72,8 @@ The branch prediction is also complaining upon seeing a branchS. I'll take a loo
 btbUpdate() does not update BTB lol. Removing the unnecessary stuff solves the issue. With that said, since BTB does not have the target cached at first, I need to make sure the "not taken prediction" case works and instructions are fetched sequentially.
 
 ### Update BTB
+The misprediction squashing in EX stage isn't triggered upon branchS. A closer look at the program shows that the EX stage thinks the branch always goes down the not taken path.
+
+2023/10/08
+### Gem5 Debug
+I guess I forgot to test the new instruction with Gem5. The issue is in the ISA generation. Before I replaced the x87 instructions with the special branch. The execution still breaks after I replace the x87 with regular branch. Fortunately not all regular branch instructions are used in this binary, and the program is executing properly after I replaced JNP with JNLS.

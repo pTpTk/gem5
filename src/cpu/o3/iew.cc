@@ -1252,16 +1252,6 @@ IEW::executeInsts()
             !toCommit->squash[tid] ||
             toCommit->squashedSeqNum[tid] > inst->seqNum) {
 
-            // if (inst->isCondCtrlS()) {
-            //     // std::unique_ptr<PCStateBase> next_pc(inst->pcState().clone());
-            //     // inst->staticInst->advancePC(*next_pc);
-            //     // printf("inst->next_PC = %s\n", *next_pc);
-            //     // printf("inst->pred_PC = %s\n\n", *inst->predPC);
-            //     // fatal("[tid:%i] [Sn:%llu] branchS detected, can't handle that"
-            //     //     "yet\n", tid, inst->seqNum);
-            //     inst->mispredicted();
-            // }
-
             // Prevent testing for misprediction on load instructions,
             // that have not been executed.
             bool loadNotExecuted = !inst->isExecuted() && inst->isLoad();

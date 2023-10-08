@@ -42,6 +42,6 @@ def macroop JNLS_I
 
     rdip t1
     limm t2, imm
-    wrip t1, t2, flags=(nCSxOF,)
+    wrips t1, t2, flags=(nCSxOF,)
 };
 """
