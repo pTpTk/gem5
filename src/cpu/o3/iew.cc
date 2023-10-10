@@ -1256,12 +1256,13 @@ IEW::executeInsts()
             // that have not been executed.
             bool loadNotExecuted = !inst->isExecuted() && inst->isLoad();
 
-            if (inst->mispredicted() && !loadNotExecuted) {
-                fetchRedirect[tid] = true;
-                if (inst->isCondCtrlS()) {
-                    fatal("[tid:%i] [Sn:%llu] branchS missprediction, can't handle that"
-                        "yet\n", tid, inst->seqNum);
+            if (inst->isCondCtrlS() && !loadNotExecuted) {
+                // BTB miss but should branch
+                if (!inst->readPredS() && inst->mispredicted()) {
+                    squashDueToBranch(inst, tid);
                 }
+            } else if (inst->mispredicted() && !loadNotExecuted) {
+                fetchRedirect[tid] = true;
 
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                         "Branch mispredict detected.\n",

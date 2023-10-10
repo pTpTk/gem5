@@ -517,10 +517,6 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
         return true;
     }
 
-    if (inst->isCondCtrlS()) {
-        assert(inst->isCondCtrl());
-    }
-
     if (!inst->isControl()) {
         inst->staticInst->advancePC(next_pc);
         inst->setPredTarg(next_pc);
@@ -537,7 +533,7 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
 
         // fall back to regular branch not taken
         if (!predict_s_hit) {
-            // fatal("[tid:%i] [Sn:%llu] BTB miss, can't handle that"
+            // fatal("[tid:%i] [Sn:%llu] BTB miss, can't handle that "
             //     "yet\n", tid, inst->seqNum);
 
             DPRINTF(BranchS, "[tid:%i] [sn:%llu] BranchS at PC %#x "
@@ -546,8 +542,12 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
 
             inst->setPredTarg(next_pc);
             inst->setPredTaken(false);
+            inst->setPredS(false);
             return false;
         }
+
+        fatal("[tid:%i] [Sn:%llu] BTB hit, can't handle that "
+                "yet\n", tid, inst->seqNum);
 
         fetchBranchSStatus[tid].branchS = true;
         fetchBranchSStatus[tid].branchSTaken = true;

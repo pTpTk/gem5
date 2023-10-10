@@ -526,6 +526,8 @@ class DynInst : public ExecContext, public RefCounted
         instFlags[PredTaken] = predicted_taken;
     }
 
+    bool readPredS() { return instFlags[PredS]; }
+
     void
     setPredS(bool predicted_s)
     {
@@ -562,7 +564,7 @@ class DynInst : public ExecContext, public RefCounted
     bool isDirectCtrl()   const { return staticInst->isDirectCtrl(); }
     bool isIndirectCtrl() const { return staticInst->isIndirectCtrl(); }
     bool isCondCtrl()     const { return staticInst->isCondCtrl(); }
-    bool isCondCtrlS()     const { return staticInst->isCondCtrlS(); }
+    bool isCondCtrlS()    const { return staticInst->isCondCtrlS(); }
     bool isUncondCtrl()   const { return staticInst->isUncondCtrl(); }
     bool isSerializing()  const { return staticInst->isSerializing(); }
     bool

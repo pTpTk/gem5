@@ -77,3 +77,7 @@ The misprediction squashing in EX stage isn't triggered upon branchS. A closer l
 2023/10/08
 ### Gem5 Debug
 I guess I forgot to test the new instruction with Gem5. The issue is in the ISA generation. Before I replaced the x87 instructions with the special branch. The execution still breaks after I replace the x87 with regular branch. Fortunately not all regular branch instructions are used in this binary, and the program is executing properly after I replaced JNP with JNLS.
+
+2023/10/10
+### Gem5 debug again
+Besides the btbUpdate() function that does not update the BTB with new target, there is a BTBUpdate() function that does the job. However, the function is not used anywhere in the repo. So there's a bunch of unused BTB logic in the code... I'll have fetch decode the branchS target for now.
