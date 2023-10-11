@@ -494,8 +494,6 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     ThreadID tid = inst->threadNumber;
 
     if (fetchBranchSStatus[tid].branchS) {
-        fatal("[tid:%i] [Sn:%llu] HERE!!!"
-                "yet\n", tid, inst->seqNum);
         //TODO:: fix me
         if (inst->isControl()) {
             fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
@@ -533,8 +531,6 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
 
         // fall back to regular branch not taken
         if (!predict_s_hit) {
-            // fatal("[tid:%i] [Sn:%llu] BTB miss, can't handle that "
-            //     "yet\n", tid, inst->seqNum);
 
             DPRINTF(BranchS, "[tid:%i] [sn:%llu] BranchS at PC %#x "
                 "can't find branch target\n",
@@ -545,9 +541,6 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
             inst->setPredS(false);
             return false;
         }
-
-        fatal("[tid:%i] [Sn:%llu] BTB hit, can't handle that "
-                "yet\n", tid, inst->seqNum);
 
         fetchBranchSStatus[tid].branchS = true;
         fetchBranchSStatus[tid].branchSTaken = true;
@@ -1005,6 +998,9 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
         // branch predictor with that instruction, otherwise just kill the
         // invalid state we generated in after sequence number
         if (fromCommit->commitInfo[tid].mispredictInst &&
+            fromCommit->commitInfo[tid].mispredictInst->isCondCtrlS()) {
+            branchPred->BTBUpdateS(*fromCommit->commitInfo[tid].pc, tid);
+        } else if (fromCommit->commitInfo[tid].mispredictInst &&
             fromCommit->commitInfo[tid].mispredictInst->isControl()) {
             branchPred->squash(fromCommit->commitInfo[tid].doneSeqNum,
                     *fromCommit->commitInfo[tid].pc,

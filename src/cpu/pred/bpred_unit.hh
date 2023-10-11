@@ -198,10 +198,14 @@ class BPredUnit : public SimObject
         BTB.update(instPC, target, 0);
     }
 
+    void
+    BTBUpdateS(const PCStateBase &target, ThreadID tid);
 
     void dump();
 
   private:
+    Addr branchSMissPC;
+
     struct PredictorHistory
     {
         /**

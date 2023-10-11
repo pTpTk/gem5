@@ -343,6 +343,8 @@ BPredUnit::predictS(const StaticInstPtr &inst, const InstSeqNum &seqNum,
         DPRINTF(BranchS, "[tid:%i] [sn:%llu] BTB doesn't have a "
                 "valid entry\n", tid, seqNum);
         pred_taken = false;
+        // assert(!branchSMissPC);
+        branchSMissPC = pc.instAddr();
 
         inst->advancePC(*target);
     }
@@ -350,6 +352,13 @@ BPredUnit::predictS(const StaticInstPtr &inst, const InstSeqNum &seqNum,
     set(pc, *target);
 
     return pred_taken;
+}
+
+void
+BPredUnit::BTBUpdateS(const PCStateBase &target, ThreadID tid)
+{
+    ++stats.BTBUpdates;
+    BTB.update(branchSMissPC, target, tid);
 }
 
 void
