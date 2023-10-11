@@ -307,60 +307,6 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
     return pred_taken;
 }
 
-
-bool
-BPredUnit::predictS(const StaticInstPtr &inst, const InstSeqNum &seqNum,
-                   PCStateBase &pc, ThreadID tid)
-{
-    // See if branch predictor predicts taken.
-    // If so, get its target addr either from the BTB or the RAS.
-    // Save off record of branch stuff so the RAS can be fixed
-    // up once it's done.
-
-    bool pred_taken = true;
-    std::unique_ptr<PCStateBase> target(pc.clone());
-
-    ++stats.lookups;
-    //TODO: maybe add something similar
-    // ppBranches->notify(1);
-
-    assert(inst->isDirectCtrl());
-    assert(!inst->isCall());
-    assert(!inst->isReturn());
-
-    // Lookup in the BTB.
-    ++stats.BTBLookups;
-    // BTB hit
-    if (BTB.valid(pc.instAddr(), tid)) {
-        ++stats.BTBHits;
-        set(target, BTB.lookup(pc.instAddr(), tid));
-        DPRINTF(BranchS,
-                "[tid:%i] [sn:%llu] Instruction %s predicted "
-                "target is %s\n",
-                tid, seqNum, pc, *target);
-    // BTB miss
-    } else {
-        DPRINTF(BranchS, "[tid:%i] [sn:%llu] BTB doesn't have a "
-                "valid entry\n", tid, seqNum);
-        pred_taken = false;
-        // assert(!branchSMissPC);
-        branchSMissPC = pc.instAddr();
-
-        inst->advancePC(*target);
-    }
-
-    set(pc, *target);
-
-    return pred_taken;
-}
-
-void
-BPredUnit::BTBUpdateS(const PCStateBase &target, ThreadID tid)
-{
-    ++stats.BTBUpdates;
-    BTB.update(branchSMissPC, target, tid);
-}
-
 void
 BPredUnit::update(const InstSeqNum &done_sn, ThreadID tid)
 {

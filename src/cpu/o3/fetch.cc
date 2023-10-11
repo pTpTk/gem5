@@ -489,7 +489,7 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     // Do branch prediction check here.
     // A bit of a misnomer...next_PC is actually the current PC until
     // this function updates it.
-    bool predict_taken, predict_s_hit;
+    bool predict_taken;
 
     ThreadID tid = inst->threadNumber;
 
@@ -501,15 +501,24 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
         }
 
         if (fetchBranchSStatus[tid].branchSTaken) {
+            set(fetchBranchSStatus[tid].nextTaken, inst->pcState());
             inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextTaken));
             
             fetchBranchSStatus[tid].branchSTaken = false;
             set(next_pc, *fetchBranchSStatus[tid].nextNTaken);
+            
+            DPRINTF(BranchS, "[tid:%i] [sn:%lli] PC %s, BranchS, next Taken: %d, next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
+
         } else {
+            set(fetchBranchSStatus[tid].nextNTaken, inst->pcState());
             inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
             
             fetchBranchSStatus[tid].branchSTaken = true;
             set(next_pc, *fetchBranchSStatus[tid].nextTaken);
+
+            DPRINTF(BranchS, "[tid:%i] [sn:%lli] PC %s, BranchS, next Taken: %d, next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
         }
 
         return true;
@@ -525,22 +534,7 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     if (inst->isCondCtrlS()) {
         set(fetchBranchSStatus[tid].nextNTaken, next_pc);
 
-        // return true if branch target resolves
-        predict_s_hit = branchPred->predictS(inst->staticInst, 
-                                             inst->seqNum, next_pc, tid);
-
-        // fall back to regular branch not taken
-        if (!predict_s_hit) {
-
-            DPRINTF(BranchS, "[tid:%i] [sn:%llu] BranchS at PC %#x "
-                "can't find branch target\n",
-                tid, inst->seqNum, inst->pcState().instAddr());
-
-            inst->setPredTarg(next_pc);
-            inst->setPredTaken(false);
-            inst->setPredS(false);
-            return false;
-        }
+        set(next_pc, *inst->branchTarget());
 
         fetchBranchSStatus[tid].branchS = true;
         fetchBranchSStatus[tid].branchSTaken = true;
@@ -551,7 +545,9 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
         inst->setPredTarg(next_pc);
         inst->setPredS(true);
 
-        //TODO::temp solution hurts performance
+        DPRINTF(BranchS, "[tid:%i] [sn:%lli] PC %s, BranchS, next Taken: %d, next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
+
         return true;
     }
 
@@ -998,9 +994,6 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
         // branch predictor with that instruction, otherwise just kill the
         // invalid state we generated in after sequence number
         if (fromCommit->commitInfo[tid].mispredictInst &&
-            fromCommit->commitInfo[tid].mispredictInst->isCondCtrlS()) {
-            branchPred->BTBUpdateS(*fromCommit->commitInfo[tid].pc, tid);
-        } else if (fromCommit->commitInfo[tid].mispredictInst &&
             fromCommit->commitInfo[tid].mispredictInst->isControl()) {
             branchPred->squash(fromCommit->commitInfo[tid].doneSeqNum,
                     *fromCommit->commitInfo[tid].pc,
