@@ -76,8 +76,18 @@ The misprediction squashing in EX stage isn't triggered upon branchS. A closer l
 
 2023/10/08
 ### Gem5 Debug
-I guess I forgot to test the new instruction with Gem5. The issue is in the ISA generation. Before I replaced the x87 instructions with the special branch. The execution still breaks after I replace the x87 with regular branch. Fortunately not all regular branch instructions are used in this binary, and the program is executing properly after I replaced JNP with JNLS.
+I forgot to test the new instruction with Gem5 before. The branch was always not taken in simulation, resulting in wrong output. The issue is in the ISA generation. Before I replaced the x87 instructions with the special branch. The execution still breaks after I replace the x87 with regular branch. Fortunately not all regular branch instructions are used in this binary, and the program is executing properly after I replaced JNP with JNLS.
 
 2023/10/11
 ### Working Stepping 2
 Using the regular commit to fetch feedback signals I am able to update the BTB, and the fetch stage is bringing instructions from both paths now. With that said, maybe it is beneficial to put branchS target decode in fetch stage since this is the affected stage. Also with one less scenario hopefully the implementation would be easier. I'll keep the BTB stuff as a separate version.
+
+### Stepping 2 bug fix
+The next_pc obtained by blindly advancing the previous pc is not accurate. They have a huge stepping, so after every new instruction is fetched, the next_pc stored in the local unit needs to be updated to the current inst->pcState().
+
+2023/10/12
+## Stepping 3
+Stepping 3 should add the duplicated rename map into the architecture. This should be the biggest change to the CPU.
+
+### Rename map wrapper
+I created a wrapper holding two UnifiedRenameMap pointers. The wrapper has all the api methods provided by UnifiedRenameMap and when there is no BranchS it calls the UnifiedRenameMap methods. Upon BranchS, it should duplicate the regular UnifiedRenameMap and alternate between using the two rename maps. The without branchS version works now.

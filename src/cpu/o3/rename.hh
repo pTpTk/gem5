@@ -354,7 +354,7 @@ class Rename
     InstQueue skidBuffer[MaxThreads];
 
     /** Rename map interface. */
-    UnifiedRenameMap *renameMap[MaxThreads];
+    std::shared_ptr<RenameUnifiedRenameMap> renameMap[MaxThreads];
 
     /** Free list interface. */
     UnifiedFreeList *freeList;

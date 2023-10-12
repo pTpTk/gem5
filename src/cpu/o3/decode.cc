@@ -720,7 +720,6 @@ Decode::decodeInsts(ThreadID tid)
 
             std::unique_ptr<PCStateBase> target = inst->branchTarget();
             if (*target != inst->readPredTarg()) {
-                // TODO: How should this interact with branchS?
                 ++stats.branchMispred;
 
                 // Might want to set some sort of boolean and just do

@@ -128,5 +128,15 @@ UnifiedRenameMap::canRename(DynInstPtr inst) const
     return true;
 }
 
+bool
+RenameUnifiedRenameMap::canRename(DynInstPtr inst) const
+{
+    if (NoBrS()) {
+        return map->canRename(inst);
+    } else {
+        fatal("Rename can't handle BranchS yet\n");
+    }
+}
+
 } // namespace o3
 } // namespace gem5

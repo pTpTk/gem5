@@ -76,7 +76,7 @@ Rename::Rename(CPU *_cpu, const BaseO3CPUParams &params)
     skidBufferMax = (decodeToRenameDelay + 1) * params.decodeWidth;
     for (uint32_t tid = 0; tid < MaxThreads; tid++) {
         renameStatus[tid] = Idle;
-        renameMap[tid] = nullptr;
+        renameMap[tid] = std::make_shared<RenameUnifiedRenameMap>();
         instsInProgress[tid] = 0;
         loadsInProgress[tid] = 0;
         storesInProgress[tid] = 0;
@@ -289,7 +289,7 @@ void
 Rename::setRenameMap(UnifiedRenameMap rm_ptr[])
 {
     for (ThreadID tid = 0; tid < numThreads; tid++)
-        renameMap[tid] = &rm_ptr[tid];
+        renameMap[tid]->init(&rm_ptr[tid]);
 }
 
 void
@@ -1009,7 +1009,7 @@ void
 Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
 {
     gem5::ThreadContext *tc = inst->tcBase();
-    UnifiedRenameMap *map = renameMap[tid];
+    auto map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
     auto *isa = tc->getIsaPtr();
 
@@ -1082,7 +1082,7 @@ void
 Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 {
     gem5::ThreadContext *tc = inst->tcBase();
-    UnifiedRenameMap *map = renameMap[tid];
+    auto map = renameMap[tid];
     unsigned num_dest_regs = inst->numDestRegs();
     auto *isa = tc->getIsaPtr();
 
