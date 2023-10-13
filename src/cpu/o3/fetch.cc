@@ -496,8 +496,8 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     if (fetchBranchSStatus[tid].branchS) {
         //TODO:: fix me
         if (inst->isControl()) {
-            fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
-                "yet\n", tid, inst->seqNum);
+            // fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
+            //     "yet\n", tid, inst->seqNum);
         }
 
         if (fetchBranchSStatus[tid].branchSTaken) {

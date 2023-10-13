@@ -1260,6 +1260,8 @@ IEW::executeInsts()
                 // BTB miss but should branch
                 if (!inst->readPredS() && inst->mispredicted()) {
                     squashDueToBranch(inst, tid);
+                } else {
+                    fatal("breakpoint\n");
                 }
             } else if (inst->mispredicted() && !loadNotExecuted) {
                 fetchRedirect[tid] = true;

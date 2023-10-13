@@ -294,13 +294,13 @@ class RenameUnifiedRenameMap
   private:
     UnifiedRenameMap *map;
     UnifiedRenameMap *mapBrS;
+    mutable bool useTaken;
 
-    inline bool NoBrS() const { return mapBrS == nullptr; }
   public:
     typedef SimpleRenameMap::RenameInfo RenameInfo;
 
     /** Default constructor.  init() must be called prior to use. */
-    RenameUnifiedRenameMap() : map(nullptr), mapBrS(nullptr) {};
+    RenameUnifiedRenameMap() : map(nullptr), mapBrS(nullptr), useTaken(false) {};
 
     /** Destructor. */
     ~RenameUnifiedRenameMap() {};
@@ -331,7 +331,11 @@ class RenameUnifiedRenameMap
         if (NoBrS()) {
             return map->rename(arch_reg);
         } else {
-            fatal("Rename can't handle BranchS yet\n");
+            useTaken = !useTaken;
+            if (useTaken)
+                return map->rename(arch_reg);
+            else
+                return mapBrS->rename(arch_reg);
         }
     }
 
@@ -348,7 +352,11 @@ class RenameUnifiedRenameMap
         if (NoBrS()) {
             return map->lookup(arch_reg);
         } else {
-            fatal("Rename can't handle BranchS yet\n");
+            useTaken = !useTaken;
+            if (useTaken)
+                return map->lookup(arch_reg);
+            else
+                return mapBrS->lookup(arch_reg);
         }
     }
 
@@ -383,7 +391,11 @@ class RenameUnifiedRenameMap
         if (NoBrS()) {
             return map->numFreeEntries();
         } else {
-            fatal("Rename can't handle BranchS yet\n");
+            useTaken = !useTaken;
+            if (useTaken)
+                return map->numFreeEntries();
+            else
+                return mapBrS->numFreeEntries();
         }
     }
 
@@ -393,7 +405,11 @@ class RenameUnifiedRenameMap
         if (NoBrS()) {
             return map->numFreeEntries(type);
         } else {
-            fatal("Rename can't handle BranchS yet\n");
+            useTaken = !useTaken;
+            if (useTaken)
+                return map->numFreeEntries(type);
+            else
+                return mapBrS->numFreeEntries(type);
         }
     }
 
@@ -401,6 +417,27 @@ class RenameUnifiedRenameMap
      * Return whether there are enough registers to serve the request.
      */
     bool canRename(DynInstPtr inst) const;
+
+    // Check if there is no BranchS in progress
+    inline bool NoBrS() const { return mapBrS == nullptr; }
+
+    void initBrS()
+    {
+        assert(NoBrS());
+        mapBrS = new UnifiedRenameMap(*map);
+        assert(map != mapBrS);
+        useTaken = true;
+        // fatal("break point\n");
+    }
+
+    // remove mapBrS due to previous branch misprediction
+    void
+    squash()
+    {
+        assert(mapBrS);
+        delete mapBrS;
+        mapBrS = nullptr;
+    }
 
 };
 

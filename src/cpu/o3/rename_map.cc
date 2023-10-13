@@ -46,6 +46,7 @@
 #include "cpu/o3/dyn_inst.hh"
 #include "cpu/reg_class.hh"
 #include "debug/Rename.hh"
+#include "debug/BranchS.hh"
 
 namespace gem5
 {
@@ -134,7 +135,11 @@ RenameUnifiedRenameMap::canRename(DynInstPtr inst) const
     if (NoBrS()) {
         return map->canRename(inst);
     } else {
-        fatal("Rename can't handle BranchS yet\n");
+        useTaken = !useTaken;
+        if (useTaken)
+                return map->canRename(inst);
+            else
+                return mapBrS->canRename(inst);
     }
 }
 

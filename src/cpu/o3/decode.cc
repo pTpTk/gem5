@@ -654,8 +654,8 @@ Decode::decodeInsts(ThreadID tid)
 
         insts_to_decode.pop();
 
-        DPRINTF(BranchS, "[tid:%i] Decode stage processing instruction [sn:%lli] with "
-                "PC %s\n", tid, inst->seqNum, inst->pcState());
+        // DPRINTF(BranchS, "[tid:%i] Decode stage processing instruction [sn:%lli] with "
+        //         "PC %s\n", tid, inst->seqNum, inst->pcState());
 
         DPRINTF(Decode, "[tid:%i] Processing instruction [sn:%lli] with "
                 "PC %s\n", tid, inst->seqNum, inst->pcState());

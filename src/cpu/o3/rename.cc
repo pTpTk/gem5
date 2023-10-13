@@ -50,6 +50,7 @@
 #include "debug/Activity.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Rename.hh"
+#include "debug/BranchS.hh"
 #include "params/BaseO3CPU.hh"
 
 namespace gem5
@@ -710,6 +711,10 @@ Rename::renameInsts(ThreadID tid)
             serializeAfter(insts_to_rename, tid);
         }
 
+        if (inst->isCondCtrlS()) {
+            renameMap[tid]->initBrS();
+        }
+
         renameSrcRegs(inst, inst->threadNumber);
 
         renameDestRegs(inst, inst->threadNumber);
@@ -936,6 +941,9 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
         // waste of time to update the rename table, we definitely
         // don't want to put these on the free list.
         if (hb_it->newPhysReg != hb_it->prevPhysReg) {
+            // squash the BranchS if there is one
+            if (!renameMap[tid]->NoBrS()) renameMap[tid]->squash();
+
             // Tell the rename map to set the architected register to the
             // previous physical register that it was renamed to.
             renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
@@ -1100,10 +1108,12 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         scoreboard->unsetReg(rename_result.first);
 
-        DPRINTF(Rename,
-                "[tid:%i] "
+        // DPRINTF(Rename,
+        if (inst->seqNum > 5600000)
+        DPRINTF(BranchS,
+                "[tid:%i] [inst:%i] PC: %s "
                 "Renaming arch reg %i (%s) to physical reg %i (%i).\n",
-                tid, dest_reg.index(), dest_reg.className(),
+                tid, inst->seqNum, inst->pcState(), dest_reg.index(), dest_reg.className(),
                 rename_result.first->index(),
                 rename_result.first->flatIndex());
 
