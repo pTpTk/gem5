@@ -421,6 +421,32 @@ IEW::squashDueToBranch(const DynInstPtr& inst, ThreadID tid)
     if (!toCommit->squash[tid] ||
             inst->seqNum < toCommit->squashedSeqNum[tid]) {
         toCommit->squash[tid] = true;
+        toCommit->squashBrS[tid] = false;
+        toCommit->squashedSeqNum[tid] = inst->seqNum;
+        toCommit->branchTaken[tid] = inst->pcState().branching();
+
+        set(toCommit->pc[tid], inst->pcState());
+        inst->staticInst->advancePC(*toCommit->pc[tid]);
+
+        toCommit->mispredictInst[tid] = inst;
+        toCommit->includeSquashInst[tid] = false;
+
+        wroteToTimeBuffer = true;
+    }
+
+}
+
+void
+IEW::squashDueToBranchS(const DynInstPtr& inst, ThreadID tid)
+{
+    DPRINTF(IEW, "[tid:%i] [sn:%llu] Squashing from BranchS instruction,"
+            " PC: %s "
+            "\n", tid, inst->seqNum, inst->pcState() );
+
+    if (!toCommit->squash[tid] ||
+            inst->seqNum < toCommit->squashedSeqNum[tid]) {
+        toCommit->squash[tid] = true;
+        toCommit->squashBrS[tid] = true;
         toCommit->squashedSeqNum[tid] = inst->seqNum;
         toCommit->branchTaken[tid] = inst->pcState().branching();
 
@@ -449,6 +475,7 @@ IEW::squashDueToMemOrder(const DynInstPtr& inst, ThreadID tid)
     if (!toCommit->squash[tid] ||
             inst->seqNum <= toCommit->squashedSeqNum[tid]) {
         toCommit->squash[tid] = true;
+        toCommit->squashBrS[tid] = false;
 
         toCommit->squashedSeqNum[tid] = inst->seqNum;
         set(toCommit->pc[tid], inst->pcState());
@@ -1257,12 +1284,7 @@ IEW::executeInsts()
             bool loadNotExecuted = !inst->isExecuted() && inst->isLoad();
 
             if (inst->isCondCtrlS() && !loadNotExecuted) {
-                // BTB miss but should branch
-                if (!inst->readPredS() && inst->mispredicted()) {
-                    squashDueToBranch(inst, tid);
-                } else {
-                    fatal("breakpoint\n");
-                }
+                squashDueToBranchS(inst, tid);
             } else if (inst->mispredicted() && !loadNotExecuted) {
                 fetchRedirect[tid] = true;
 

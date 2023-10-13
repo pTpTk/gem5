@@ -781,6 +781,10 @@ Commit::commit()
             commitStatus[tid] != TrapPending &&
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
+            if (fromIEW->squashBrS[tid]) {
+                fatal("can't handle that yet\n");
+            }
+
             if (fromIEW->mispredictInst[tid]) {
                 DPRINTF(Commit,
                     "[tid:%i] Squashing due to branch mispred "

@@ -270,6 +270,8 @@ class Fetch
      */
     void drainStall(ThreadID tid);
 
+    void branchSStall(ThreadID tid);
+
     /** Tells fetch to wake up from a quiesce instruction. */
     void wakeFromQuiesce();
 
@@ -452,6 +454,7 @@ class Fetch
     {
         bool decode;
         bool drain;
+        bool branchS;
     };
 
     /** Tracks which stages are telling fetch to stall. */

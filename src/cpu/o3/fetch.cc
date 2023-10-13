@@ -125,7 +125,7 @@ Fetch::Fetch(CPU *_cpu, const BaseO3CPUParams &params)
         macroop[i] = nullptr;
         delayedCommit[i] = false;
         memReq[i] = nullptr;
-        stalls[i] = {false, false};
+        stalls[i] = {false, false, false};
         fetchBuffer[i] = NULL;
         fetchBufferPC[i] = 0;
         fetchBufferValid[i] = false;
@@ -311,6 +311,7 @@ Fetch::resetStage()
 
         stalls[tid].decode = false;
         stalls[tid].drain = false;
+        stalls[tid].branchS = false;
 
         fetchBufferPC[tid] = 0;
         fetchBufferValid[tid] = false;
@@ -441,6 +442,14 @@ Fetch::drainStall(ThreadID tid)
 }
 
 void
+Fetch::branchSStall(ThreadID tid)
+{
+    assert(!stalls[tid].branchS);
+    DPRINTF(BranchS, "%i: fetch stalled due to multiple branchS\n", tid);
+    stalls[tid].branchS = true;
+}
+
+void
 Fetch::wakeFromQuiesce()
 {
     DPRINTF(Fetch, "Waking up from quiesce\n");
@@ -495,8 +504,9 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
 
     if (fetchBranchSStatus[tid].branchS) {
         //TODO:: fix me
-        if (inst->isControl()) {
-            // fatal("[tid:%i] [Sn:%llu] can't handle control after controlS "
+        if (inst->isCondCtrlS()) {
+            branchSStall(tid);
+            // fatal("[tid:%i] [Sn:%llu] can't handle controlS after controlS "
             //     "yet\n", tid, inst->seqNum);
         }
 
@@ -807,6 +817,11 @@ Fetch::checkStall(ThreadID tid) const
     if (stalls[tid].drain) {
         assert(cpu->isDraining());
         DPRINTF(Fetch,"[tid:%i] Drain stall detected.\n",tid);
+        ret_val = true;
+    }
+
+    if (stalls[tid].branchS) {
+        DPRINTF(BranchS,"[tid:%i] branchS stall detected.\n",tid);
         ret_val = true;
     }
 

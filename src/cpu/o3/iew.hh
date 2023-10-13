@@ -242,6 +242,9 @@ class IEW
      */
     void squashDueToBranch(const DynInstPtr &inst, ThreadID tid);
 
+
+    void squashDueToBranchS(const DynInstPtr &inst, ThreadID tid);
+
     /** Sends commit proper information for a squash due to a memory order
      * violation.
      */

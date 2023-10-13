@@ -96,6 +96,7 @@ struct IEWStruct
     std::unique_ptr<PCStateBase> pc[MaxThreads];
 
     bool squash[MaxThreads];
+    bool squashBrS[MaxThreads];
     bool branchMispredict[MaxThreads];
     bool branchTaken[MaxThreads];
     bool includeSquashInst[MaxThreads];

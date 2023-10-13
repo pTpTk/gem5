@@ -91,3 +91,13 @@ Stepping 3 should add the duplicated rename map into the architecture. This shou
 
 ### Rename map wrapper
 I created a wrapper holding two UnifiedRenameMap pointers. The wrapper has all the api methods provided by UnifiedRenameMap and when there is no BranchS it calls the UnifiedRenameMap methods. Upon BranchS, it should duplicate the regular UnifiedRenameMap and alternate between using the two rename maps. The without branchS version works now.
+
+2023/10/13
+### Rename map wrapper continued
+I added the second UnifiedRenameMap into the wrapper. Each rename map depends on three objects: RegClass, PhysRegFile and UnifiedFreeList. The three objects are passed in as pointers. The two rename maps in my design should share one free list and one RegClass obj. I'm not sure if I need to handle physical register file (misc regs) differently. I'll deal with it when it comes up. The logic is pretty straight forward besides that and Stepping 3 is complete.
+
+## Stepping 4
+Stepping 4 should handle commit/squash behavior.
+
+### IEW to commit message
+A new information channel (toCommit->squashBrS\[tid\]) is added. This should be enough?
