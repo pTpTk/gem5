@@ -505,12 +505,13 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
     if (fetchBranchSStatus[tid].branchS) {
         //TODO:: fix me
         if (inst->isCondCtrlS()) {
-            branchSStall(tid);
-            // fatal("[tid:%i] [Sn:%llu] can't handle controlS after controlS "
-            //     "yet\n", tid, inst->seqNum);
+            fatal("[tid:%i] [Sn:%llu] Should not enter this case\n"
+                    , tid, inst->seqNum);
         }
 
         if (fetchBranchSStatus[tid].branchSTaken) {
+            inst->setPredS(true);
+
             set(fetchBranchSStatus[tid].nextTaken, inst->pcState());
             inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextTaken));
             
@@ -521,6 +522,8 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
                 , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
 
         } else {
+            inst->setPredS(false);
+
             set(fetchBranchSStatus[tid].nextNTaken, inst->pcState());
             inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
             
@@ -797,6 +800,63 @@ Fetch::doSquash(const PCStateBase &new_pc, const DynInstPtr squashInst,
 }
 
 void
+Fetch::doSquashBrS(bool branch_taken, ThreadID tid)
+{
+    PCStateBase& current_pc = *pc[tid];
+    std::unique_ptr<PCStateBase> new_pc(current_pc.clone());
+    if (branch_taken) {
+        set(current_pc, fetchBranchSStatus[tid].nextTaken);
+    }
+
+    DPRINTF(BranchS, "[tid:%i] Squashing due to branchS, Taken: %i, "
+            "setting PC to: %s.\n",
+            tid, new_pc);
+
+    // set(pc[tid], new_pc);
+    // fetchOffset[tid] = 0;
+    // if (squashInst && squashInst->pcState().instAddr() == new_pc.instAddr())
+    //     macroop[tid] = squashInst->macroop;
+    // else
+    //     macroop[tid] = NULL;
+    // decoder[tid]->reset();
+
+    // // Clear the icache miss if it's outstanding.
+    // if (fetchStatus[tid] == IcacheWaitResponse) {
+    //     DPRINTF(Fetch, "[tid:%i] Squashing outstanding Icache miss.\n",
+    //             tid);
+    //     memReq[tid] = NULL;
+    // } else if (fetchStatus[tid] == ItlbWait) {
+    //     DPRINTF(Fetch, "[tid:%i] Squashing outstanding ITLB miss.\n",
+    //             tid);
+    //     memReq[tid] = NULL;
+    // }
+
+    // // Get rid of the retrying packet if it was from this thread.
+    // if (retryTid == tid) {
+    //     assert(cacheBlocked);
+    //     if (retryPkt) {
+    //         delete retryPkt;
+    //     }
+    //     retryPkt = NULL;
+    //     retryTid = InvalidThreadID;
+    // }
+
+    // fetchStatus[tid] = Squashing;
+
+    // // Empty fetch queue
+    // fetchQueue[tid].clear();
+
+    // // microops are being squashed, it is not known wheather the
+    // // youngest non-squashed microop was  marked delayed commit
+    // // or not. Setting the flag to true ensures that the
+    // // interrupts are not handled when they cannot be, though
+    // // some opportunities to handle interrupts may be missed.
+    // delayedCommit[tid] = true;
+
+    // ++fetchStats.squashCycles;
+}
+
+void
 Fetch::squashFromDecode(const PCStateBase &new_pc, const DynInstPtr squashInst,
         const InstSeqNum seq_num, ThreadID tid)
 {
@@ -874,6 +934,17 @@ Fetch::squash(const PCStateBase &new_pc, const InstSeqNum seq_num,
     DPRINTF(Fetch, "[tid:%i] Squash from commit.\n", tid);
 
     doSquash(new_pc, squashInst, tid);
+
+    // Tell the CPU to remove any instructions that are not in the ROB.
+    cpu->removeInstsNotInROB(tid);
+}
+
+void
+Fetch::squashBrS(bool branch_taken, ThreadID tid)
+{
+    DPRINTF(Fetch, "[tid:%i] Squash from commit.\n", tid);
+
+    doSquashBrS(branch_taken, tid);
 
     // Tell the CPU to remove any instructions that are not in the ROB.
     cpu->removeInstsNotInROB(tid);
@@ -997,6 +1068,10 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
 
     // Check squash signals from commit.
     if (fromCommit->commitInfo[tid].squash) {
+
+        if (fromCommit->commitInfo[tid].squashBrS) {
+            squashBrS(fromCommit->commitInfo[tid].branchTaken, tid);
+        }
 
         DPRINTF(Fetch, "[tid:%i] Squashing instructions due to squash "
                 "from commit.\n",tid);
@@ -1317,6 +1392,19 @@ Fetch::fetch(bool &status_change)
 
             DynInstPtr instruction = buildInst(
                     tid, staticInst, curMacroop, this_pc, *next_pc, true);
+
+            // unload the second BranchS instruction if the first one is 
+            // in progress
+            if (fetchBranchSStatus[tid].branchS 
+                && instruction->isCondCtrlS())
+            {    
+                DPRINTF(BranchS, "can't handle controlS after controlS "
+                    "yet\n");
+
+                fetchQueue[tid].pop_back();
+                branchSStall(tid);
+                break;
+            }
 
             ppFetch->notify(instruction);
             numInst++;

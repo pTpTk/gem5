@@ -79,7 +79,8 @@ class ROB
     {
         Running,
         Idle,
-        ROBSquashing
+        ROBSquashing,
+        ROBSquashingBrS,
     };
 
   private:
@@ -200,11 +201,13 @@ class ROB
 
     /** Executes the squash, marking squashed instructions. */
     void doSquash(ThreadID tid);
+    void doSquashBrS(ThreadID tid);
 
     /** Squashes all instructions younger than the given sequence number for
      *  the specific thread.
      */
     void squash(InstSeqNum squash_num, ThreadID tid);
+    void squashBrS(InstSeqNum squash_num, bool brs_taken, ThreadID tid);
 
     /** Updates the head instruction with the new oldest instruction. */
     void updateHead();
@@ -325,6 +328,9 @@ class ROB
 
     /** Is the ROB done squashing. */
     bool doneSquashing[MaxThreads];
+
+    // Is the branchS taken?
+    bool brSTaken[MaxThreads];
 
     /** Number of active threads. */
     ThreadID numThreads;

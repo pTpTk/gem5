@@ -210,6 +210,8 @@ class Commit
      */
     void commit();
 
+    void squashBrS(ThreadID tid);
+
     /** Returns the number of free ROB entries for a specific thread. */
     size_t numROBFreeEntries(ThreadID tid);
 

@@ -325,6 +325,8 @@ class Fetch
     void doSquash(const PCStateBase &new_pc, const DynInstPtr squashInst,
             ThreadID tid);
 
+    void doSquashBrS(bool branch_taken, ThreadID tid);
+
     /** Squashes a specific thread and resets the PC. Also tells the CPU to
      * remove any instructions between fetch and decode
      *  that should be sqaushed.
@@ -347,6 +349,8 @@ class Fetch
      */
     void squash(const PCStateBase &new_pc, const InstSeqNum seq_num,
                 DynInstPtr squashInst, ThreadID tid);
+
+    void squashBrS(bool branch_taken, ThreadID tid);
 
     /** Ticks the fetch stage, processing all inputs signals and fetching
      * as many instructions as possible.

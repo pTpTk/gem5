@@ -101,3 +101,14 @@ Stepping 4 should handle commit/squash behavior.
 
 ### IEW to commit message
 A new information channel (toCommit->squashBrS\[tid\]) is added. This should be enough?
+
+2023/10/17
+### Stepping 4 breakdown
+The commit/squash step is more complicated than I thought. Every stage, and every queue has its own squash behavior that requires changes.
+
+### ROB squash
+Commit stage calls the ROB squash, which now sets the instructions as squashed and ready-to-commit down the mispredicted path. A temperary work around is added, where the ROB squashes all instructions at once instead of following the squash width parameter.
+
+### Commit squash
+Commit squash involves mostly forwarding information down to previous stages. I copied most of the information flow down for now (Might need to change this further). I also added a squashBrS signal. I'll set this to true along with squash.
+

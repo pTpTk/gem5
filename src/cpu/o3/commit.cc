@@ -782,7 +782,8 @@ Commit::commit()
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
             if (fromIEW->squashBrS[tid]) {
-                fatal("can't handle that yet\n");
+                squashBrS(tid);
+                goto squash_brs_done;
             }
 
             if (fromIEW->mispredictInst[tid]) {
@@ -842,6 +843,8 @@ Commit::commit()
             set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
         }
 
+squash_brs_done:
+        //TODO: new commit status?
         if (commitStatus[tid] == ROBSquashing) {
             num_squashing_threads++;
         }
@@ -895,6 +898,56 @@ Commit::commit()
         }
 
     }
+}
+
+void
+Commit::squashBrS(ThreadID tid)
+{
+    DPRINTF(BranchS,
+        "[tid:%i] [sn:%llu] Squashing due to branchS "
+        "PC:%#x. Taken: %i\n",
+        tid,
+        fromIEW->squashedSeqNum[tid],
+        fromIEW->mispredictInst[tid]->pcState().instAddr(),
+        fromIEW->branchTaken[tid]);
+
+    commitStatus[tid] = ROBSquashing;
+
+    // If we want to include the squashing instruction in the squash,
+    // then use one older sequence number.
+    InstSeqNum squashed_inst = fromIEW->squashedSeqNum[tid];
+
+    if (fromIEW->includeSquashInst[tid]) {
+        squashed_inst--;
+    }
+
+    // All younger instructions will be squashed. Set the sequence
+    // number as the youngest instruction in the ROB.
+    youngestSeqNum[tid] = squashed_inst;
+
+    rob->squashBrS(squashed_inst, fromIEW->branchTaken[tid], tid);
+    changedROBNumEntries[tid] = true;
+
+    toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
+
+    toIEW->commitInfo[tid].squash = true;
+    toIEW->commitInfo[tid].squashBrS = true;
+
+    // Send back the rob squashing signal so other stages know that
+    // the ROB is in the process of squashing.
+    toIEW->commitInfo[tid].robSquashing = true;
+
+    toIEW->commitInfo[tid].mispredictInst =
+        fromIEW->mispredictInst[tid];
+    toIEW->commitInfo[tid].branchTaken =
+        fromIEW->branchTaken[tid];
+    toIEW->commitInfo[tid].squashInst =
+        rob->findInst(tid, squashed_inst);
+    if (toIEW->commitInfo[tid].mispredictInst) {
+        ++stats.branchMispredicts;
+    }
+
+    // set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
 }
 
 void

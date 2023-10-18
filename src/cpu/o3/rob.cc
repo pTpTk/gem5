@@ -47,6 +47,7 @@
 #include "cpu/o3/limits.hh"
 #include "debug/Fetch.hh"
 #include "debug/ROB.hh"
+#include "debug/BranchS.hh"
 #include "params/BaseO3CPU.hh"
 
 namespace gem5
@@ -390,6 +391,117 @@ ROB::doSquash(ThreadID tid)
     }
 }
 
+void
+ROB::doSquashBrS(ThreadID tid)
+{
+    // fatal("herer\n");
+    stats.writes++;
+    DPRINTF(ROB, "[tid:%i] Squashing instructions until [sn:%llu].\n",
+            tid, squashedSeqNum[tid]);
+
+    assert(squashIt[tid] != instList[tid].end());
+
+    if ((*squashIt[tid])->seqNum < squashedSeqNum[tid]) {
+        DPRINTF(ROB, "[tid:%i] Done squashing instructions.\n",
+                tid);
+
+        squashIt[tid] = instList[tid].end();
+
+        doneSquashing[tid] = true;
+        return;
+    }
+
+    bool robTailUpdate = false;
+
+    unsigned int numInstsToSquash = squashWidth;
+    // TODO: temp workaround to simplify construction. FIX ME
+    numInstsToSquash = numEntries;
+
+    // If the CPU is exiting, squash all of the instructions
+    // it is told to, even if that exceeds the squashWidth.
+    // Set the number to the number of entries (the max).
+    if (cpu->isThreadExiting(tid))
+    {
+        numInstsToSquash = numEntries;
+    }
+
+    DPRINTF(BranchS, "before squashBrS:\n");
+    for (auto& inst : instList[tid]) {
+        DPRINTF(BranchS, "[tid:%i] [seq:%lu] [pc:%s] PredS: %i, squashed: %i\n",
+                inst->threadNumber, inst->seqNum,
+                inst->pcState(), inst->readPredS(), inst->isSquashed());
+    }
+
+    DPRINTF(BranchS, "numInstsToSquash = %d\n", numInstsToSquash);
+
+    for (int numSquashed = 0;
+         numSquashed < numInstsToSquash &&
+         squashIt[tid] != instList[tid].end() &&
+         (*squashIt[tid])->seqNum > squashedSeqNum[tid];
+         ++numSquashed)
+    {
+        if ((*squashIt[tid])->readPredS() == brSTaken[tid]) {
+            DPRINTF(BranchS, "[tid:%i] [seq:%i] instruction PC %s not squashed\n",
+                    (*squashIt[tid])->threadNumber, (*squashIt[tid])->seqNum,
+                    (*squashIt[tid])->pcState());
+            
+            squashIt[tid]--;
+            continue;
+        }
+
+        DPRINTF(BranchS, "[tid:%i] Squashing instruction PC %s, seq num %i.\n",
+                (*squashIt[tid])->threadNumber,
+                (*squashIt[tid])->pcState(),
+                (*squashIt[tid])->seqNum);
+
+        // Mark the instruction as squashed, and ready to commit so that
+        // it can drain out of the pipeline.
+        (*squashIt[tid])->setSquashed();
+
+        (*squashIt[tid])->setCanCommit();
+
+
+        if (squashIt[tid] == instList[tid].begin()) {
+            DPRINTF(ROB, "Reached head of instruction list while "
+                    "squashing.\n");
+
+            squashIt[tid] = instList[tid].end();
+
+            doneSquashing[tid] = true;
+
+            return;
+        }
+
+        InstIt tail_thread = instList[tid].end();
+        tail_thread--;
+
+        if ((*squashIt[tid]) == (*tail_thread))
+            robTailUpdate = true;
+
+        squashIt[tid]--;
+    }
+
+    DPRINTF(BranchS, "after squashBrS:\n");
+    for (auto& inst : instList[tid]) {
+        DPRINTF(BranchS, "[tid:%i] [seq:%lu] [pc:%s] PredS: %i, squashed: %i\n",
+                inst->threadNumber, inst->seqNum,
+                inst->pcState(), inst->readPredS(), inst->isSquashed());
+    }
+
+    // Check if ROB is done squashing.
+    if ((*squashIt[tid])->seqNum <= squashedSeqNum[tid]) {
+        DPRINTF(ROB, "[tid:%i] Done squashing instructions.\n",
+                tid);
+
+        squashIt[tid] = instList[tid].end();
+
+        doneSquashing[tid] = true;
+    }
+
+    if (robTailUpdate) {
+        updateTail();
+    }
+}
 
 void
 ROB::updateHead()
@@ -495,6 +607,37 @@ ROB::squash(InstSeqNum squash_num, ThreadID tid)
         squashIt[tid] = tail_thread;
 
         doSquash(tid);
+    }
+}
+
+void
+ROB::squashBrS(InstSeqNum squash_num, bool brs_taken, ThreadID tid)
+{
+    if (isEmpty(tid)) {
+        DPRINTF(ROB, "Does not need to squash due to being empty "
+                "[sn:%llu]\n",
+                squash_num);
+
+        return;
+    }
+
+    DPRINTF(BranchS, "Starting to squash within the ROB. Taken: %i\n", brs_taken);
+
+    robStatus[tid] = ROBSquashing;
+
+    doneSquashing[tid] = false;
+
+    squashedSeqNum[tid] = squash_num;
+
+    brSTaken[tid] = brs_taken;
+
+    if (!instList[tid].empty()) {
+        InstIt tail_thread = instList[tid].end();
+        tail_thread--;
+
+        squashIt[tid] = tail_thread;
+
+        doSquashBrS(tid);
     }
 }
 

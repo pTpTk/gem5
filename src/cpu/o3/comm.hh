@@ -195,6 +195,7 @@ struct TimeStruct
         unsigned freeROBEntries; // *R
 
         bool squash; // *F, D, R, I
+        bool squashBrS; // *F, D, R, I
         bool robSquashing; // *F, D, R, I
 
         /// Rename should re-read number of free rob entries

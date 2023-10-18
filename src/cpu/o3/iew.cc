@@ -701,6 +701,10 @@ IEW::checkSignalsAndUpdate(ThreadID tid)
     // If status was Squashing
     //     check if squashing is not high.  Switch to running this cycle.
 
+    if (fromCommit->commitInfo[tid].squashBrS) {
+        fatal("can't handle this yet.\n");
+    }
+
     if (fromCommit->commitInfo[tid].squash) {
         squash(tid);
 
