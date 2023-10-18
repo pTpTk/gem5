@@ -942,6 +942,7 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
         // don't want to put these on the free list.
         if (hb_it->newPhysReg != hb_it->prevPhysReg) {
             // squash the BranchS if there is one
+            // TODO: fix wrong logic
             if (!renameMap[tid]->NoBrS()) renameMap[tid]->squash();
 
             // Tell the rename map to set the architected register to the

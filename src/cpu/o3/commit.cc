@@ -947,7 +947,10 @@ Commit::squashBrS(ThreadID tid)
         ++stats.branchMispredicts;
     }
 
-    // set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
+    set(toIEW->commitInfo[tid].pc, 
+        toIEW->commitInfo[tid].squashInst->pcState());
+    toIEW->commitInfo[tid].
+        squashInst->staticInst->advancePC(*toIEW->commitInfo[tid].pc);
 }
 
 void

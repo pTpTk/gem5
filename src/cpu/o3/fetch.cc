@@ -802,15 +802,15 @@ Fetch::doSquash(const PCStateBase &new_pc, const DynInstPtr squashInst,
 void
 Fetch::doSquashBrS(bool branch_taken, ThreadID tid)
 {
-    PCStateBase& current_pc = *pc[tid];
-    std::unique_ptr<PCStateBase> new_pc(current_pc.clone());
-    if (branch_taken) {
-        set(current_pc, fetchBranchSStatus[tid].nextTaken);
-    }
+    // PCStateBase& current_pc = *pc[tid];
+    // std::unique_ptr<PCStateBase> new_pc(current_pc.clone());
+    // if (branch_taken) {
+    //     set(current_pc, fetchBranchSStatus[tid].nextTaken);
+    // }
 
-    DPRINTF(BranchS, "[tid:%i] Squashing due to branchS, Taken: %i, "
-            "setting PC to: %s.\n",
-            tid, new_pc);
+    // DPRINTF(BranchS, "[tid:%i] Squashing due to branchS, Taken: %i, "
+    //         "setting PC to: %s.\n",
+    //         tid, new_pc);
 
     // set(pc[tid], new_pc);
     // fetchOffset[tid] = 0;
@@ -1070,7 +1070,11 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
     if (fromCommit->commitInfo[tid].squash) {
 
         if (fromCommit->commitInfo[tid].squashBrS) {
-            squashBrS(fromCommit->commitInfo[tid].branchTaken, tid);
+            // squashBrS(fromCommit->commitInfo[tid].branchTaken, tid);
+            DPRINTF(BranchS, "[tid:%i] Squashing instructions due to squash "
+                "from commit.\n",tid);
+            DPRINTF(BranchS, "Next instruction pc: %s\n",
+                *fromCommit->commitInfo[tid].pc);
         }
 
         DPRINTF(Fetch, "[tid:%i] Squashing instructions due to squash "

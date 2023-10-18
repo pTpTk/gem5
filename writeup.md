@@ -112,3 +112,6 @@ Commit stage calls the ROB squash, which now sets the instructions as squashed a
 ### Commit squash
 Commit squash involves mostly forwarding information down to previous stages. I copied most of the information flow down for now (Might need to change this further). I also added a squashBrS signal. I'll set this to true along with squash.
 
+2023/10/18
+### Fetch, decode squash
+Initially I wanted to squash half of fetch queue similar to ROB. The work in progress is in branch branchS_fetch_squashBrS. A closer look at the code showed that I can use the fetch and hopefully decode squash logic as is. In order to do that, I need to modify the commit squash logic to provide the youngest valid pc. This might hurt the performance? Also the commit/ROB modification is done on the shortcut code, need to fix this later. Decode looks ok too.

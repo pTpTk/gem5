@@ -201,13 +201,13 @@ class ROB
 
     /** Executes the squash, marking squashed instructions. */
     void doSquash(ThreadID tid);
-    void doSquashBrS(ThreadID tid);
+    InstSeqNum doSquashBrS(ThreadID tid);
 
     /** Squashes all instructions younger than the given sequence number for
      *  the specific thread.
      */
     void squash(InstSeqNum squash_num, ThreadID tid);
-    void squashBrS(InstSeqNum squash_num, bool brs_taken, ThreadID tid);
+    void squashBrS(InstSeqNum& squash_num, bool brs_taken, ThreadID tid);
 
     /** Updates the head instruction with the new oldest instruction. */
     void updateHead();

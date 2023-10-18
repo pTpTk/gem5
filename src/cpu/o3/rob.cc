@@ -391,10 +391,11 @@ ROB::doSquash(ThreadID tid)
     }
 }
 
-void
+InstSeqNum
 ROB::doSquashBrS(ThreadID tid)
 {
-    // fatal("herer\n");
+    InstSeqNum last_valid = squashedSeqNum[tid];
+
     stats.writes++;
     DPRINTF(ROB, "[tid:%i] Squashing instructions until [sn:%llu].\n",
             tid, squashedSeqNum[tid]);
@@ -408,7 +409,7 @@ ROB::doSquashBrS(ThreadID tid)
         squashIt[tid] = instList[tid].end();
 
         doneSquashing[tid] = true;
-        return;
+        return last_valid;
     }
 
     bool robTailUpdate = false;
@@ -444,6 +445,14 @@ ROB::doSquashBrS(ThreadID tid)
             DPRINTF(BranchS, "[tid:%i] [seq:%i] instruction PC %s not squashed\n",
                     (*squashIt[tid])->threadNumber, (*squashIt[tid])->seqNum,
                     (*squashIt[tid])->pcState());
+
+            if (last_valid == squashedSeqNum[tid])
+            {
+                last_valid = (*squashIt[tid])->seqNum;
+                DPRINTF(BranchS, "[tid:%i] [seq:%i] [pc: %s] last valid instruction in ROB\n",
+                    (*squashIt[tid])->threadNumber, (*squashIt[tid])->seqNum,
+                    (*squashIt[tid])->pcState());
+            }
             
             squashIt[tid]--;
             continue;
@@ -469,7 +478,7 @@ ROB::doSquashBrS(ThreadID tid)
 
             doneSquashing[tid] = true;
 
-            return;
+            return last_valid;
         }
 
         InstIt tail_thread = instList[tid].end();
@@ -501,6 +510,8 @@ ROB::doSquashBrS(ThreadID tid)
     if (robTailUpdate) {
         updateTail();
     }
+
+    return last_valid;
 }
 
 void
@@ -611,7 +622,7 @@ ROB::squash(InstSeqNum squash_num, ThreadID tid)
 }
 
 void
-ROB::squashBrS(InstSeqNum squash_num, bool brs_taken, ThreadID tid)
+ROB::squashBrS(InstSeqNum& squash_num, bool brs_taken, ThreadID tid)
 {
     if (isEmpty(tid)) {
         DPRINTF(ROB, "Does not need to squash due to being empty "
@@ -637,7 +648,7 @@ ROB::squashBrS(InstSeqNum squash_num, bool brs_taken, ThreadID tid)
 
         squashIt[tid] = tail_thread;
 
-        doSquashBrS(tid);
+        squash_num = doSquashBrS(tid);
     }
 }
 
