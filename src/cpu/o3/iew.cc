@@ -385,14 +385,14 @@ IEW::squash(ThreadID tid)
     instQueue.squash(tid);
 
     // Tell the LDSTQ to start squashing.
-    ldstQueue.squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
+    ldstQueue.squash(fromCommit->commitInfo[tid].squashSeqNum, tid);
     updatedQueues = true;
 
     // Clear the skid buffer in case it has any data in it.
     DPRINTF(IEW,
             "Removing skidbuffer instructions until "
             "[sn:%llu] [tid:%i]\n",
-            fromCommit->commitInfo[tid].doneSeqNum, tid);
+            fromCommit->commitInfo[tid].squashSeqNum, tid);
 
     while (!skidBuffer[tid].empty()) {
         if (skidBuffer[tid].front()->isLoad()) {
@@ -700,10 +700,6 @@ IEW::checkSignalsAndUpdate(ThreadID tid)
     //     if so then go to unblocking
     // If status was Squashing
     //     check if squashing is not high.  Switch to running this cycle.
-
-    if (fromCommit->commitInfo[tid].squashBrS) {
-        fatal("can't handle this yet.\n");
-    }
 
     if (fromCommit->commitInfo[tid].squash) {
         squash(tid);

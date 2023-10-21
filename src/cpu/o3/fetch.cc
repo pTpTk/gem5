@@ -518,8 +518,8 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
             fetchBranchSStatus[tid].branchSTaken = false;
             set(next_pc, *fetchBranchSStatus[tid].nextNTaken);
             
-            DPRINTF(BranchS, "[tid:%i] [sn:%lli] PC %s, BranchS, next Taken: %d, next PC: %s\n"
-                , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
+            DPRINTF(BranchS, "[tid:%i] [sn:%lli] [pc:%s] BranchS, taken: %d, next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), !fetchBranchSStatus[tid].branchSTaken, next_pc);
 
         } else {
             inst->setPredS(false);
@@ -530,8 +530,8 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
             fetchBranchSStatus[tid].branchSTaken = true;
             set(next_pc, *fetchBranchSStatus[tid].nextTaken);
 
-            DPRINTF(BranchS, "[tid:%i] [sn:%lli] PC %s, BranchS, next Taken: %d, next PC: %s\n"
-                , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
+            DPRINTF(BranchS, "[tid:%i] [sn:%lli] [pc:%s] BranchS, taken: %d, next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), !fetchBranchSStatus[tid].branchSTaken, next_pc);
         }
 
         return true;
@@ -541,6 +541,11 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
         inst->staticInst->advancePC(next_pc);
         inst->setPredTarg(next_pc);
         inst->setPredTaken(false);
+
+        if (inst->seqNum > 5603780) {
+            DPRINTF(BranchS, "[tid:%i] [sn:%lli] [pc:%s] next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), next_pc);
+        }
         return false;
     }
 
@@ -558,8 +563,8 @@ Fetch::lookupAndUpdateNextPC(const DynInstPtr &inst, PCStateBase &next_pc)
         inst->setPredTarg(next_pc);
         inst->setPredS(true);
 
-        DPRINTF(BranchS, "[tid:%i] [sn:%lli] PC %s, BranchS, next Taken: %d, next PC: %s\n"
-                , tid, inst->seqNum, inst->pcState(), fetchBranchSStatus[tid].branchSTaken, next_pc);
+        DPRINTF(BranchS, "[tid:%i] [sn:%lli] [pc:%s] BranchS, taken: %d, next PC: %s\n"
+                , tid, inst->seqNum, inst->pcState(), !fetchBranchSStatus[tid].branchSTaken, next_pc);
 
         return true;
     }
@@ -753,7 +758,7 @@ Fetch::doSquash(const PCStateBase &new_pc, const DynInstPtr squashInst,
         ThreadID tid)
 {
     DPRINTF(Fetch, "[tid:%i] Squashing, setting PC to: %s.\n",
-            tid, new_pc);
+        tid, new_pc);
 
     set(pc[tid], new_pc);
     fetchOffset[tid] = 0;
@@ -797,64 +802,67 @@ Fetch::doSquash(const PCStateBase &new_pc, const DynInstPtr squashInst,
     delayedCommit[tid] = true;
 
     ++fetchStats.squashCycles;
+
+     if (stalls[tid].branchS) {
+        fatal("branchS stall encountered");
+     }
 }
 
 void
-Fetch::doSquashBrS(bool branch_taken, ThreadID tid)
+Fetch::doSquashBrS(const PCStateBase &new_pc, const DynInstPtr squashInst,
+        ThreadID tid)
 {
-    // PCStateBase& current_pc = *pc[tid];
-    // std::unique_ptr<PCStateBase> new_pc(current_pc.clone());
-    // if (branch_taken) {
-    //     set(current_pc, fetchBranchSStatus[tid].nextTaken);
-    // }
+    DPRINTF(BranchS, "[tid:%i] Squashing, setting PC to: %s.\n",
+        tid, new_pc);
 
-    // DPRINTF(BranchS, "[tid:%i] Squashing due to branchS, Taken: %i, "
-    //         "setting PC to: %s.\n",
-    //         tid, new_pc);
+    set(pc[tid], new_pc);
+    fetchOffset[tid] = 0;
+    if (squashInst && squashInst->pcState().instAddr() == new_pc.instAddr())
+        macroop[tid] = squashInst->macroop;
+    else
+        macroop[tid] = NULL;
+    decoder[tid]->reset();
 
-    // set(pc[tid], new_pc);
-    // fetchOffset[tid] = 0;
-    // if (squashInst && squashInst->pcState().instAddr() == new_pc.instAddr())
-    //     macroop[tid] = squashInst->macroop;
-    // else
-    //     macroop[tid] = NULL;
-    // decoder[tid]->reset();
+    // Clear the icache miss if it's outstanding.
+    if (fetchStatus[tid] == IcacheWaitResponse) {
+        DPRINTF(Fetch, "[tid:%i] Squashing outstanding Icache miss.\n",
+                tid);
+        memReq[tid] = NULL;
+    } else if (fetchStatus[tid] == ItlbWait) {
+        DPRINTF(Fetch, "[tid:%i] Squashing outstanding ITLB miss.\n",
+                tid);
+        memReq[tid] = NULL;
+    }
 
-    // // Clear the icache miss if it's outstanding.
-    // if (fetchStatus[tid] == IcacheWaitResponse) {
-    //     DPRINTF(Fetch, "[tid:%i] Squashing outstanding Icache miss.\n",
-    //             tid);
-    //     memReq[tid] = NULL;
-    // } else if (fetchStatus[tid] == ItlbWait) {
-    //     DPRINTF(Fetch, "[tid:%i] Squashing outstanding ITLB miss.\n",
-    //             tid);
-    //     memReq[tid] = NULL;
-    // }
+    // Get rid of the retrying packet if it was from this thread.
+    if (retryTid == tid) {
+        assert(cacheBlocked);
+        if (retryPkt) {
+            delete retryPkt;
+        }
+        retryPkt = NULL;
+        retryTid = InvalidThreadID;
+    }
 
-    // // Get rid of the retrying packet if it was from this thread.
-    // if (retryTid == tid) {
-    //     assert(cacheBlocked);
-    //     if (retryPkt) {
-    //         delete retryPkt;
-    //     }
-    //     retryPkt = NULL;
-    //     retryTid = InvalidThreadID;
-    // }
+    fetchStatus[tid] = Squashing;
 
-    // fetchStatus[tid] = Squashing;
+    // Empty fetch queue
+    fetchQueue[tid].clear();
 
-    // // Empty fetch queue
-    // fetchQueue[tid].clear();
+    // microops are being squashed, it is not known wheather the
+    // youngest non-squashed microop was  marked delayed commit
+    // or not. Setting the flag to true ensures that the
+    // interrupts are not handled when they cannot be, though
+    // some opportunities to handle interrupts may be missed.
+    delayedCommit[tid] = true;
 
-    // // microops are being squashed, it is not known wheather the
-    // // youngest non-squashed microop was  marked delayed commit
-    // // or not. Setting the flag to true ensures that the
-    // // interrupts are not handled when they cannot be, though
-    // // some opportunities to handle interrupts may be missed.
-    // delayedCommit[tid] = true;
+    ++fetchStats.squashCycles;
 
-    // ++fetchStats.squashCycles;
+     if (stalls[tid].branchS) {
+        fatal("branchS stall encountered");
+     }
 }
+
 
 void
 Fetch::squashFromDecode(const PCStateBase &new_pc, const DynInstPtr squashInst,
@@ -940,14 +948,18 @@ Fetch::squash(const PCStateBase &new_pc, const InstSeqNum seq_num,
 }
 
 void
-Fetch::squashBrS(bool branch_taken, ThreadID tid)
+Fetch::squashBrS(const PCStateBase &new_pc, const InstSeqNum seq_num,
+        DynInstPtr squashInst, ThreadID tid)
 {
-    DPRINTF(Fetch, "[tid:%i] Squash from commit.\n", tid);
+    DPRINTF(BranchS, "[tid:%i] SquashBrS from commit.\n", tid);
 
-    doSquashBrS(branch_taken, tid);
+    doSquashBrS(new_pc, squashInst, tid);
 
     // Tell the CPU to remove any instructions that are not in the ROB.
     cpu->removeInstsNotInROB(tid);
+
+    DPRINTF(BranchS, "clear branchS status\n");
+    fetchBranchSStatus[tid].reset();
 }
 
 void
@@ -1070,11 +1082,15 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
     if (fromCommit->commitInfo[tid].squash) {
 
         if (fromCommit->commitInfo[tid].squashBrS) {
-            // squashBrS(fromCommit->commitInfo[tid].branchTaken, tid);
             DPRINTF(BranchS, "[tid:%i] Squashing instructions due to squash "
                 "from commit.\n",tid);
             DPRINTF(BranchS, "Next instruction pc: %s\n",
                 *fromCommit->commitInfo[tid].pc);
+            squashBrS(*fromCommit->commitInfo[tid].pc,
+               fromCommit->commitInfo[tid].squashSeqNum,
+               fromCommit->commitInfo[tid].squashInst, tid);
+            
+            return true;
         }
 
         DPRINTF(Fetch, "[tid:%i] Squashing instructions due to squash "

@@ -189,6 +189,7 @@ class Rename
 
     /** Squashes all instructions in a thread. */
     void squash(const InstSeqNum &squash_seq_num, ThreadID tid);
+    void squashBrS(const InstSeqNum &squash_seq_num, bool taken, ThreadID tid);
 
     /** Ticks rename, which processes all input signals and attempts to rename
      * as many instructions as possible.
@@ -244,6 +245,7 @@ class Rename
 
     /** Executes actual squash, removing squashed instructions. */
     void doSquash(const InstSeqNum &squash_seq_num, ThreadID tid);
+    void doSquashBrS(const InstSeqNum &squash_seq_num, ThreadID tid);
 
     /** Removes a committed instruction's rename history. */
     void removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid);
@@ -300,7 +302,17 @@ class Rename
                       PhysRegIdPtr _newPhysReg,
                       PhysRegIdPtr _prevPhysReg)
             : instSeqNum(_instSeqNum), archReg(_archReg),
-              newPhysReg(_newPhysReg), prevPhysReg(_prevPhysReg)
+              newPhysReg(_newPhysReg), prevPhysReg(_prevPhysReg),
+              taken(false)
+        {
+        }
+
+        RenameHistory(InstSeqNum _instSeqNum, const RegId& _archReg,
+                      PhysRegIdPtr _newPhysReg,
+                      PhysRegIdPtr _prevPhysReg, bool _taken)
+            : instSeqNum(_instSeqNum), archReg(_archReg),
+              newPhysReg(_newPhysReg), prevPhysReg(_prevPhysReg),
+              taken(_taken)
         {
         }
 
@@ -313,6 +325,8 @@ class Rename
         /** The old physical register that the arch. register was renamed to.
          */
         PhysRegIdPtr prevPhysReg;
+        // used for BrS squashing
+        bool taken;
     };
 
     /** A per-thread list of all destination register renames, used to either
@@ -364,6 +378,11 @@ class Rename
 
     /** Pointer to the scoreboard. */
     Scoreboard *scoreboard;
+
+    // Is branchS in progress?
+    bool branchSInProgress[MaxThreads];
+    // Which branch is this inst on?
+    bool branchSTaken[MaxThreads];
 
     /** Count of instructions in progress that have been sent off to the IQ
      * and ROB, but are not yet included in their occupancy counts.

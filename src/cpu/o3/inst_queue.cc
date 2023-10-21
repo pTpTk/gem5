@@ -1173,7 +1173,7 @@ InstructionQueue::squash(ThreadID tid)
 
     // Read instruction sequence number of last instruction out of the
     // time buffer.
-    squashedSeqNum[tid] = fromCommit->commitInfo[tid].doneSeqNum;
+    squashedSeqNum[tid] = fromCommit->commitInfo[tid].squashSeqNum;
 
     doSquash(tid);
 

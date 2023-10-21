@@ -428,7 +428,7 @@ ROB::doSquashBrS(ThreadID tid)
 
     DPRINTF(BranchS, "before squashBrS:\n");
     for (auto& inst : instList[tid]) {
-        DPRINTF(BranchS, "[tid:%i] [seq:%lu] [pc:%s] PredS: %i, squashed: %i\n",
+        DPRINTF(BranchS, "[tid:%i] [sn:%lu] [pc:%s] PredS: %i, squashed: %i\n",
                 inst->threadNumber, inst->seqNum,
                 inst->pcState(), inst->readPredS(), inst->isSquashed());
     }
@@ -442,14 +442,14 @@ ROB::doSquashBrS(ThreadID tid)
          ++numSquashed)
     {
         if ((*squashIt[tid])->readPredS() == brSTaken[tid]) {
-            DPRINTF(BranchS, "[tid:%i] [seq:%i] instruction PC %s not squashed\n",
+            DPRINTF(BranchS, "[tid:%i] [sn:%i] instruction PC %s not squashed\n",
                     (*squashIt[tid])->threadNumber, (*squashIt[tid])->seqNum,
                     (*squashIt[tid])->pcState());
 
             if (last_valid == squashedSeqNum[tid])
             {
                 last_valid = (*squashIt[tid])->seqNum;
-                DPRINTF(BranchS, "[tid:%i] [seq:%i] [pc: %s] last valid instruction in ROB\n",
+                DPRINTF(BranchS, "[tid:%i] [sn:%i] [pc:%s] last valid instruction in ROB\n",
                     (*squashIt[tid])->threadNumber, (*squashIt[tid])->seqNum,
                     (*squashIt[tid])->pcState());
             }
@@ -492,7 +492,7 @@ ROB::doSquashBrS(ThreadID tid)
 
     DPRINTF(BranchS, "after squashBrS:\n");
     for (auto& inst : instList[tid]) {
-        DPRINTF(BranchS, "[tid:%i] [seq:%lu] [pc:%s] PredS: %i, squashed: %i\n",
+        DPRINTF(BranchS, "[tid:%i] [sn:%lu] [pc:%s] PredS: %i, squashed: %i\n",
                 inst->threadNumber, inst->seqNum,
                 inst->pcState(), inst->readPredS(), inst->isSquashed());
     }

@@ -182,8 +182,9 @@ class Fetch
         NoGoodAddr
     };
 
-    struct FetchBranchSStatus
+    class FetchBranchSStatus
     {
+      public:
         bool branchS;
         bool branchSTaken;
         std::unique_ptr<PCStateBase> nextTaken;
@@ -192,6 +193,13 @@ class Fetch
         FetchBranchSStatus()
         : branchS(false), branchSTaken(false)
         {}
+
+        void reset()
+        {
+            branchS = branchSTaken = false;
+            nextTaken.reset(nullptr);
+            nextNTaken.reset(nullptr);
+        }
     };
 
   private:
@@ -325,7 +333,8 @@ class Fetch
     void doSquash(const PCStateBase &new_pc, const DynInstPtr squashInst,
             ThreadID tid);
 
-    void doSquashBrS(bool branch_taken, ThreadID tid);
+    void doSquashBrS(const PCStateBase &new_pc, const DynInstPtr squashInst,
+            ThreadID tid);
 
     /** Squashes a specific thread and resets the PC. Also tells the CPU to
      * remove any instructions between fetch and decode
@@ -350,7 +359,8 @@ class Fetch
     void squash(const PCStateBase &new_pc, const InstSeqNum seq_num,
                 DynInstPtr squashInst, ThreadID tid);
 
-    void squashBrS(bool branch_taken, ThreadID tid);
+    void squashBrS(const PCStateBase &new_pc, const InstSeqNum seq_num,
+                DynInstPtr squashInst, ThreadID tid);
 
     /** Ticks the fetch stage, processing all inputs signals and fetching
      * as many instructions as possible.

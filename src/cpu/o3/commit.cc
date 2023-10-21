@@ -501,6 +501,7 @@ Commit::squashAll(ThreadID tid)
 
     // Send back the sequence number of the squashed instruction.
     toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
+    toIEW->commitInfo[tid].squashSeqNum = squashed_inst;
 
     // Send back the squash signal to tell stages that they should
     // squash.
@@ -794,7 +795,7 @@ Commit::commit()
                     fromIEW->mispredictInst[tid]->pcState().instAddr(),
                     fromIEW->squashedSeqNum[tid]);
             } else {
-                DPRINTF(Commit,
+                DPRINTF(BranchS,
                     "[tid:%i] Squashing due to order violation [sn:%llu]\n",
                     tid, fromIEW->squashedSeqNum[tid]);
             }
@@ -820,6 +821,7 @@ Commit::commit()
             changedROBNumEntries[tid] = true;
 
             toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
+            toIEW->commitInfo[tid].squashSeqNum = squashed_inst;
 
             toIEW->commitInfo[tid].squash = true;
 
@@ -925,10 +927,15 @@ Commit::squashBrS(ThreadID tid)
     // number as the youngest instruction in the ROB.
     youngestSeqNum[tid] = squashed_inst;
 
+    toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
+
+    // squashBrS updates squashed_inst to the last valid instruction
+    // in ROB, and the inst is the endpoint for squashing but this 
+    // should not affect LSQ commits.
     rob->squashBrS(squashed_inst, fromIEW->branchTaken[tid], tid);
     changedROBNumEntries[tid] = true;
 
-    toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
+    toIEW->commitInfo[tid].squashSeqNum = squashed_inst;
 
     toIEW->commitInfo[tid].squash = true;
     toIEW->commitInfo[tid].squashBrS = true;

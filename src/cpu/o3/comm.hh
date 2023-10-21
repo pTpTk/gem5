@@ -190,6 +190,9 @@ struct TimeStruct
         /// squashed.  Similar to having a single bus that broadcasts the
         /// retired or squashed sequence number.
         InstSeqNum doneSeqNum; // *F, I
+        // spliting doneSeqNum's responsibilities into regular commit 
+        // feedback and squash feedback. Due to iew LSQ complications.
+        InstSeqNum squashSeqNum; // *F, I
 
         /// Tell Rename how many free entries it has in the ROB
         unsigned freeROBEntries; // *R

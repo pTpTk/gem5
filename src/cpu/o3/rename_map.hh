@@ -54,6 +54,7 @@
 #include "cpu/o3/free_list.hh"
 #include "cpu/o3/regfile.hh"
 #include "cpu/reg_class.hh"
+#include "debug/BranchS.hh"
 
 namespace gem5
 {
@@ -369,13 +370,20 @@ class RenameUnifiedRenameMap
      * @param phys_reg The physical register to remap it to.
      */
     void
-    setEntry(const RegId& arch_reg, PhysRegIdPtr phys_reg)
+    setEntry(const RegId& arch_reg, PhysRegIdPtr phys_reg, bool taken)
     {
         if (NoBrS()) {
             return map->setEntry(arch_reg, phys_reg);
         } else {
-            // TODO: is this needed?
-            fatal("Rename can't handle BranchS yet\n");
+            if (taken) {
+                DPRINTF(BranchS, "squashing mapBrS entry, arch_reg %d, phys_reg %d\n",
+                        arch_reg, phys_reg->flatIndex());
+                return mapBrS->setEntry(arch_reg, phys_reg);
+            } else {
+                DPRINTF(BranchS, "squashing map entry, arch_reg %d, phys_reg %d\n",
+                        arch_reg, phys_reg->flatIndex());
+                return map->setEntry(arch_reg, phys_reg);
+            }
         }
     }
 
@@ -432,9 +440,13 @@ class RenameUnifiedRenameMap
 
     // remove mapBrS due to previous branch misprediction
     void
-    squash()
+    squash(bool taken)
     {
         assert(mapBrS);
+        if (taken) {
+            DPRINTF(BranchS, "BranchS taken, swap two rename maps\n");
+            std::swap(map, mapBrS);
+        }
         delete mapBrS;
         mapBrS = nullptr;
     }

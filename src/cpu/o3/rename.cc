@@ -78,6 +78,8 @@ Rename::Rename(CPU *_cpu, const BaseO3CPUParams &params)
     for (uint32_t tid = 0; tid < MaxThreads; tid++) {
         renameStatus[tid] = Idle;
         renameMap[tid] = std::make_shared<RenameUnifiedRenameMap>();
+        branchSInProgress[tid] = false;
+        branchSTaken[tid] = false;
         instsInProgress[tid] = 0;
         loadsInProgress[tid] = 0;
         storesInProgress[tid] = 0;
@@ -241,6 +243,8 @@ Rename::clearStates(ThreadID tid)
     stalls[tid].iew = false;
     serializeInst[tid] = NULL;
 
+    branchSInProgress[tid] = false;
+    branchSTaken[tid] = false;
     instsInProgress[tid] = 0;
     loadsInProgress[tid] = 0;
     storesInProgress[tid] = 0;
@@ -271,6 +275,8 @@ Rename::resetStage()
         stalls[tid].iew = false;
         serializeInst[tid] = NULL;
 
+        branchSInProgress[tid] = false;
+        branchSTaken[tid] = false;
         instsInProgress[tid] = 0;
         loadsInProgress[tid] = 0;
         storesInProgress[tid] = 0;
@@ -339,7 +345,7 @@ Rename::drainSanityCheck() const
 void
 Rename::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
 {
-    DPRINTF(Rename, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
+    DPRINTF(BranchS, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
         tid,squash_seq_num);
 
     // Clear the stall signal if rename was blocked or unblocking before.
@@ -387,6 +393,65 @@ Rename::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     skidBuffer[tid].clear();
 
     doSquash(squash_seq_num, tid);
+}
+
+void
+Rename::squashBrS(const InstSeqNum &squash_seq_num, bool taken, ThreadID tid)
+{
+    DPRINTF(Rename, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
+        tid,squash_seq_num);
+
+    // Clear the stall signal if rename was blocked or unblocking before.
+    // If it still needs to block, the blocking should happen the next
+    // cycle and there should be space to hold everything due to the squash.
+    if (renameStatus[tid] == Blocked ||
+        renameStatus[tid] == Unblocking) {
+        toDecode->renameUnblock[tid] = 1;
+
+        resumeSerialize = false;
+        serializeInst[tid] = NULL;
+    } else if (renameStatus[tid] == SerializeStall) {
+        if (serializeInst[tid]->seqNum <= squash_seq_num) {
+            DPRINTF(Rename, "[tid:%i] [squash sn:%llu] "
+                "Rename will resume serializing after squash\n",
+                tid,squash_seq_num);
+            resumeSerialize = true;
+            assert(serializeInst[tid]);
+        } else {
+            resumeSerialize = false;
+            toDecode->renameUnblock[tid] = 1;
+
+            serializeInst[tid] = NULL;
+        }
+    }
+
+    // Set the status to Squashing.
+    renameStatus[tid] = Squashing;
+
+    // Squash any instructions from decode.
+    for (int i=0; i<fromDecode->size; i++) {
+        if (fromDecode->insts[i]->threadNumber == tid &&
+            fromDecode->insts[i]->seqNum > squash_seq_num) {
+            fromDecode->insts[i]->setSquashed();
+            wroteToTimeBuffer = true;
+        }
+
+    }
+
+    // Clear the instruction list and skid buffer in case they have any
+    // insts in them.
+    insts[tid].clear();
+
+    // Clear the skid buffer in case it has any data in it.
+    skidBuffer[tid].clear();
+
+    doSquashBrS(squash_seq_num, tid);
+
+    DPRINTF(BranchS, "squashing duplicated rename map. Taken: %i\n", taken);
+    assert(!renameMap[tid]->NoBrS());
+    renameMap[tid]->squash(taken);
+
+    branchSInProgress[tid] = false;
 }
 
 void
@@ -713,6 +778,7 @@ Rename::renameInsts(ThreadID tid)
 
         if (inst->isCondCtrlS()) {
             renameMap[tid]->initBrS();
+            branchSInProgress[tid] = true;
         }
 
         renameSrcRegs(inst, inst->threadNumber);
@@ -941,13 +1007,62 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
         // waste of time to update the rename table, we definitely
         // don't want to put these on the free list.
         if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            // squash the BranchS if there is one
-            // TODO: fix wrong logic
-            if (!renameMap[tid]->NoBrS()) renameMap[tid]->squash();
-
+            if (hb_it->taken) {
+                DPRINTF(BranchS, "[tid:%i] [sn:%llu] remove rename hisotry "
+                        "entry with regular squash. BranchS in progress: %i\n",
+                        tid, hb_it->instSeqNum, branchSInProgress[tid]);
+            }
+            // assert(!hb_it->taken);
             // Tell the rename map to set the architected register to the
             // previous physical register that it was renamed to.
-            renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
+            renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg,
+                                     hb_it->taken);
+
+            // Put the renamed physical register back on the free list.
+            freeList->addReg(hb_it->newPhysReg);
+        }
+
+        // Notify potential listeners that the register mapping needs to be
+        // removed because the instruction it was mapped to got squashed. Note
+        // that this is done before hb_it is incremented.
+        ppSquashInRename->notify(std::make_pair(hb_it->instSeqNum,
+                                                hb_it->newPhysReg));
+
+        historyBuffer[tid].erase(hb_it++);
+
+        ++stats.undoneMaps;
+    }
+}
+
+void
+Rename::doSquashBrS(const InstSeqNum &squashed_seq_num, ThreadID tid)
+{
+    auto hb_it = historyBuffer[tid].begin();
+
+    // After a syscall squashes everything, the history buffer may be empty
+    // but the ROB may still be squashing instructions.
+    // Go through the most recent instructions, undoing the mappings
+    // they did and freeing up the registers.
+    while (!historyBuffer[tid].empty() &&
+           hb_it->instSeqNum > squashed_seq_num) {
+        assert(hb_it != historyBuffer[tid].end());
+
+        DPRINTF(BranchS, "[tid:%i] Removing history entry with sequence "
+                "number %i (archReg: %d, newPhysReg: %d, prevPhysReg: %d, taken: %i).\n",
+                tid, hb_it->instSeqNum, hb_it->archReg.index(),
+                hb_it->newPhysReg->index(), hb_it->prevPhysReg->index(), hb_it->taken);
+
+        // Undo the rename mapping only if it was really a change.
+        // Special regs that are not really renamed (like misc regs
+        // and the zero reg) can be recognized because the new mapping
+        // is the same as the old one.  While it would be merely a
+        // waste of time to update the rename table, we definitely
+        // don't want to put these on the free list.
+        if (hb_it->newPhysReg != hb_it->prevPhysReg) {
+            // Tell the rename map to set the architected register to the
+            // previous physical register that it was renamed to.
+            renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg,
+                                     hb_it->taken);
 
             // Put the renamed physical register back on the free list.
             freeList->addReg(hb_it->newPhysReg);
@@ -996,10 +1111,10 @@ Rename::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
            hb_it->instSeqNum <= inst_seq_num) {
 
         DPRINTF(Rename, "[tid:%i] Freeing up older rename of reg %i (%s), "
-                "[sn:%llu].\n",
+                "[sn:%llu]. taken: %i\n",
                 tid, hb_it->prevPhysReg->index(),
                 hb_it->prevPhysReg->className(),
-                hb_it->instSeqNum);
+                hb_it->instSeqNum, hb_it->taken);
 
         // Don't free special phys regs like misc and zero regs, which
         // can be recognized because the new mapping is the same as
@@ -1110,9 +1225,9 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         scoreboard->unsetReg(rename_result.first);
 
         // DPRINTF(Rename,
-        if (inst->seqNum > 5600000)
+        if (branchSInProgress[tid])
         DPRINTF(BranchS,
-                "[tid:%i] [inst:%i] PC: %s "
+                "[tid:%i] [sn:%i] [pc:%s] "
                 "Renaming arch reg %i (%s) to physical reg %i (%i).\n",
                 tid, inst->seqNum, inst->pcState(), dest_reg.index(), dest_reg.className(),
                 rename_result.first->index(),
@@ -1121,7 +1236,12 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         // Record the rename information so that a history can be kept.
         RenameHistory hb_entry(inst->seqNum, flat_dest_regid,
                                rename_result.first,
-                               rename_result.second);
+                               rename_result.second,
+                               branchSInProgress[tid]);
+
+        if (branchSInProgress[tid]) {
+            hb_entry.taken = inst->readPredS();
+        }
 
         historyBuffer[tid].push_front(hb_entry);
 
@@ -1301,6 +1421,15 @@ Rename::checkSignalsAndUpdate(ThreadID tid)
     readStallSignals(tid);
 
     if (fromCommit->commitInfo[tid].squash) {
+        if (fromCommit->commitInfo[tid].squashBrS) {
+            DPRINTF(BranchS, "[tid:%i] Squashing instructions due to squash from "
+                    "commit.\n", tid);
+            squashBrS(fromCommit->commitInfo[tid].squashSeqNum,
+                      fromCommit->commitInfo[tid].branchTaken, tid);
+
+            return true;
+        }
+
         DPRINTF(Rename, "[tid:%i] Squashing instructions due to squash from "
                 "commit.\n", tid);
 
