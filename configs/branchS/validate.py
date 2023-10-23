@@ -94,7 +94,7 @@ thispath = os.path.dirname(os.path.realpath(__file__))
 binary = os.path.join(
     thispath,
     "../../../",
-    "gem5_101/Hw4/main.x",
+    "gem5_101/Hw4/main.bak",
 )
 
 system.workload = SEWorkload.init_compatible(binary)
@@ -103,7 +103,7 @@ system.workload = SEWorkload.init_compatible(binary)
 process = Process()
 # Set the command
 # cmd is a list which begins with the executable (like argv)
-process.cmd = [binary, 'a', 'b', '/home/zeyu/Documents/gem5_101/Hw4/g_small']
+process.cmd = [binary, 'a', 'b', '/home/zeyu/Documents/gem5_101/Hw4/g_medium']
 # Set the cpu to use the process as its workload and create thread contexts
 system.cpu.workload = process
 system.cpu.createThreads()

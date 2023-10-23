@@ -345,7 +345,7 @@ Rename::drainSanityCheck() const
 void
 Rename::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
 {
-    DPRINTF(BranchS, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
+    DPRINTF(Rename, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
         tid,squash_seq_num);
 
     // Clear the stall signal if rename was blocked or unblocking before.
@@ -398,7 +398,7 @@ Rename::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
 void
 Rename::squashBrS(const InstSeqNum &squash_seq_num, bool taken, ThreadID tid)
 {
-    DPRINTF(Rename, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
+    DPRINTF(BranchS, "[tid:%i] [squash sn:%llu] Squashing instructions.\n",
         tid,squash_seq_num);
 
     // Clear the stall signal if rename was blocked or unblocking before.
@@ -1007,12 +1007,7 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
         // waste of time to update the rename table, we definitely
         // don't want to put these on the free list.
         if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            if (hb_it->taken) {
-                DPRINTF(BranchS, "[tid:%i] [sn:%llu] remove rename hisotry "
-                        "entry with regular squash. BranchS in progress: %i\n",
-                        tid, hb_it->instSeqNum, branchSInProgress[tid]);
-            }
-            // assert(!hb_it->taken);
+            assert(!hb_it->taken);
             // Tell the rename map to set the architected register to the
             // previous physical register that it was renamed to.
             renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg,

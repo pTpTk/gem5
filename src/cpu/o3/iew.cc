@@ -439,7 +439,7 @@ IEW::squashDueToBranch(const DynInstPtr& inst, ThreadID tid)
 void
 IEW::squashDueToBranchS(const DynInstPtr& inst, ThreadID tid)
 {
-    DPRINTF(IEW, "[tid:%i] [sn:%llu] Squashing from BranchS instruction,"
+    DPRINTF(BranchS, "[tid:%i] [sn:%llu] Squashing from BranchS instruction,"
             " PC: %s "
             "\n", tid, inst->seqNum, inst->pcState() );
 
@@ -1285,7 +1285,9 @@ IEW::executeInsts()
 
             if (inst->isCondCtrlS() && !loadNotExecuted) {
                 squashDueToBranchS(inst, tid);
-            } else if (inst->mispredicted() && !loadNotExecuted) {
+            } else if (inst->isControl() && inst->mispredicted() && !loadNotExecuted) {
+                DPRINTF(BranchS, "[tid:%i] [sn:%llu] inst isDC: %i, inst is IDC: %i\n",
+                        tid, inst->seqNum, inst->isDirectCtrl(), inst->isIndirectCtrl());
                 fetchRedirect[tid] = true;
 
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
@@ -1588,7 +1590,7 @@ IEW::checkMisprediction(const DynInstPtr& inst)
         !toCommit->squash[tid] ||
         toCommit->squashedSeqNum[tid] > inst->seqNum) {
 
-        if (inst->mispredicted()) {
+        if (inst->isIndirectCtrl() && inst->mispredicted()) {
             fetchRedirect[tid] = true;
 
             DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
