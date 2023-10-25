@@ -157,6 +157,8 @@ class SimpleRenameMap
     const_iterator end() const { return map.end(); }
     const_iterator cend() const { return map.cend(); }
     /** @} */
+
+    void printMap(PhysRegFile *regFile) const;
 };
 
 /**
@@ -288,6 +290,8 @@ class UnifiedRenameMap
      * Return whether there are enough registers to serve the request.
      */
     bool canRename(DynInstPtr inst) const;
+
+    void printMap() const;
 };
 
 class RenameUnifiedRenameMap
@@ -306,17 +310,11 @@ class RenameUnifiedRenameMap
     /** Destructor. */
     ~RenameUnifiedRenameMap() {};
 
-    void init(UnifiedRenameMap* mapPtr)
-    {
-        map = mapPtr;
-    }
+    void init(UnifiedRenameMap* mapPtr);
 
     /** Initializes rename map with given parameters. */
     void init(const BaseISA::RegClasses &regClasses,
-              PhysRegFile *_regFile, UnifiedFreeList *freeList)
-    {
-        map->init(regClasses, _regFile, freeList);
-    }
+              PhysRegFile *_regFile, UnifiedFreeList *freeList);
 
     /**
      * Tell rename map to get a new free physical register to remap
@@ -326,19 +324,7 @@ class RenameUnifiedRenameMap
      * @return A RenameInfo pair indicating both the new and previous
      * physical registers.
      */
-    RenameInfo
-    rename(const RegId& arch_reg)
-    {
-        if (NoBrS()) {
-            return map->rename(arch_reg);
-        } else {
-            useTaken = !useTaken;
-            if (useTaken)
-                return map->rename(arch_reg);
-            else
-                return mapBrS->rename(arch_reg);
-        }
-    }
+    RenameInfo rename(const RegId& arch_reg);
 
     /**
      * Look up the physical register mapped to an architectural register.
@@ -347,19 +333,7 @@ class RenameUnifiedRenameMap
      * @param arch_reg The architectural register to look up.
      * @return The physical register it is currently mapped to.
      */
-    PhysRegIdPtr
-    lookup(const RegId& arch_reg) const
-    {
-        if (NoBrS()) {
-            return map->lookup(arch_reg);
-        } else {
-            useTaken = !useTaken;
-            if (useTaken)
-                return map->lookup(arch_reg);
-            else
-                return mapBrS->lookup(arch_reg);
-        }
-    }
+    PhysRegIdPtr lookup(const RegId& arch_reg) const;
 
     /**
      * Update rename map with a specific mapping.  Generally used to
@@ -369,23 +343,7 @@ class RenameUnifiedRenameMap
      * @param arch_reg The architectural register to remap.
      * @param phys_reg The physical register to remap it to.
      */
-    void
-    setEntry(const RegId& arch_reg, PhysRegIdPtr phys_reg, bool taken)
-    {
-        if (NoBrS()) {
-            return map->setEntry(arch_reg, phys_reg);
-        } else {
-            if (taken) {
-                DPRINTF(BranchS, "squashing mapBrS entry, arch_reg %d, phys_reg %d\n",
-                        arch_reg, phys_reg->flatIndex());
-                return mapBrS->setEntry(arch_reg, phys_reg);
-            } else {
-                DPRINTF(BranchS, "squashing map entry, arch_reg %d, phys_reg %d\n",
-                        arch_reg, phys_reg->flatIndex());
-                return map->setEntry(arch_reg, phys_reg);
-            }
-        }
-    }
+    void setEntry(const RegId& arch_reg, PhysRegIdPtr phys_reg, bool taken);
 
     /**
      * Return the minimum number of free entries across all of the
@@ -393,33 +351,9 @@ class RenameUnifiedRenameMap
      * this number of entries is available regardless of which class
      * of registers is requested.
      */
-    unsigned
-    numFreeEntries() const
-    {
-        if (NoBrS()) {
-            return map->numFreeEntries();
-        } else {
-            useTaken = !useTaken;
-            if (useTaken)
-                return map->numFreeEntries();
-            else
-                return mapBrS->numFreeEntries();
-        }
-    }
+    unsigned numFreeEntries() const;
 
-    unsigned
-    numFreeEntries(RegClassType type) const
-    {
-        if (NoBrS()) {
-            return map->numFreeEntries(type);
-        } else {
-            useTaken = !useTaken;
-            if (useTaken)
-                return map->numFreeEntries(type);
-            else
-                return mapBrS->numFreeEntries(type);
-        }
-    }
+    unsigned numFreeEntries(RegClassType type) const;
 
     /**
      * Return whether there are enough registers to serve the request.
@@ -429,28 +363,13 @@ class RenameUnifiedRenameMap
     // Check if there is no BranchS in progress
     inline bool NoBrS() const { return mapBrS == nullptr; }
 
-    void initBrS()
-    {
-        assert(NoBrS());
-        mapBrS = new UnifiedRenameMap(*map);
-        assert(map != mapBrS);
-        useTaken = true;
-        // fatal("break point\n");
-    }
+    void initBrS();
 
     // remove mapBrS due to previous branch misprediction
-    void
-    squash(bool taken)
-    {
-        assert(mapBrS);
-        if (taken) {
-            DPRINTF(BranchS, "BranchS taken, swap two rename maps\n");
-            std::swap(map, mapBrS);
-        }
-        delete mapBrS;
-        mapBrS = nullptr;
-    }
+    void squash(bool taken);
 
+    void printMap() const;
+    void printMapBrS() const;
 };
 
 } // namespace o3

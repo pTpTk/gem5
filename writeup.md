@@ -122,3 +122,7 @@ Upon branchS, rename squashes all younger instructions similar to regular squash
 
 ### IEW squash
 Regular IEW squash removes all younger instructions in IQ and LDSTQ. This should work with branchS squashing.
+
+2023/10/23
+### Bug fix #1
+Gem5 uses the diff between the predicted PC and the actual next PC as misprediction. This leads to extra squashing in the presence of a branchS. So I bounded the check only to control instructions. There are two misprediction checks in the code: one in IEW, which handles BrS separately, and one upon a load, which only affects indirect controls. It took me a while to catch this one... 

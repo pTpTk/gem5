@@ -172,6 +172,7 @@ class Fetch
         Idle,
         Squashing,
         Blocked,
+        BlockedBrS,
         Fetching,
         TrapPending,
         QuiescePending,

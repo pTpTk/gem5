@@ -44,6 +44,7 @@
 #include <vector>
 
 #include "cpu/o3/dyn_inst.hh"
+#include "cpu/o3/regfile.hh"
 #include "cpu/reg_class.hh"
 #include "debug/Rename.hh"
 #include "debug/BranchS.hh"
@@ -141,6 +142,188 @@ RenameUnifiedRenameMap::canRename(DynInstPtr inst) const
             else
                 return mapBrS->canRename(inst);
     }
+}
+
+void
+RenameUnifiedRenameMap::init(UnifiedRenameMap* mapPtr)
+{
+    map = mapPtr;
+}
+
+/** Initializes rename map with given parameters. */
+void
+RenameUnifiedRenameMap::init(const BaseISA::RegClasses &regClasses,
+            PhysRegFile *_regFile, UnifiedFreeList *freeList)
+{
+    map->init(regClasses, _regFile, freeList);
+}
+
+/**
+ * Tell rename map to get a new free physical register to remap
+ * the specified architectural register. This version takes a
+ * RegId and reads the  appropriate class-specific rename table.
+ * @param arch_reg The architectural register id to remap.
+ * @return A RenameInfo pair indicating both the new and previous
+ * physical registers.
+ */
+RenameUnifiedRenameMap::RenameInfo
+RenameUnifiedRenameMap::rename(const RegId& arch_reg)
+{
+    if (NoBrS()) {
+        return map->rename(arch_reg);
+    } else {
+        useTaken = !useTaken;
+        if (useTaken)
+            return map->rename(arch_reg);
+        else
+            return mapBrS->rename(arch_reg);
+    }
+}
+
+/**
+ * Look up the physical register mapped to an architectural register.
+ * This version takes a flattened architectural register id
+ * and calls the appropriate class-specific rename table.
+ * @param arch_reg The architectural register to look up.
+ * @return The physical register it is currently mapped to.
+ */
+PhysRegIdPtr
+RenameUnifiedRenameMap::lookup(const RegId& arch_reg) const
+{
+    if (NoBrS()) {
+        return map->lookup(arch_reg);
+    } else {
+        useTaken = !useTaken;
+        if (useTaken)
+            return map->lookup(arch_reg);
+        else
+            return mapBrS->lookup(arch_reg);
+    }
+}
+
+/**
+ * Update rename map with a specific mapping.  Generally used to
+ * roll back to old mappings on a squash.  This version takes a
+ * flattened architectural register id and calls the
+ * appropriate class-specific rename table.
+ * @param arch_reg The architectural register to remap.
+ * @param phys_reg The physical register to remap it to.
+ */
+void
+RenameUnifiedRenameMap::setEntry(const RegId& arch_reg, PhysRegIdPtr phys_reg, bool taken)
+{
+    if (NoBrS()) {
+        return map->setEntry(arch_reg, phys_reg);
+    } else {
+        if (taken) {
+            DPRINTF(BranchS, "squashing mapBrS entry, arch_reg %d, phys_reg %d\n",
+                    arch_reg, phys_reg->flatIndex());
+            return mapBrS->setEntry(arch_reg, phys_reg);
+        } else {
+            DPRINTF(BranchS, "squashing map entry, arch_reg %d, phys_reg %d\n",
+                    arch_reg, phys_reg->flatIndex());
+            return map->setEntry(arch_reg, phys_reg);
+        }
+    }
+}
+
+/**
+ * Return the minimum number of free entries across all of the
+ * register classes.  The minimum is used so we guarantee that
+ * this number of entries is available regardless of which class
+ * of registers is requested.
+ */
+unsigned
+RenameUnifiedRenameMap::numFreeEntries() const
+{
+    if (NoBrS()) {
+        return map->numFreeEntries();
+    } else {
+        useTaken = !useTaken;
+        if (useTaken)
+            return map->numFreeEntries();
+        else
+            return mapBrS->numFreeEntries();
+    }
+}
+
+unsigned
+RenameUnifiedRenameMap::numFreeEntries(RegClassType type) const
+{
+    if (NoBrS()) {
+        return map->numFreeEntries(type);
+    } else {
+        useTaken = !useTaken;
+        if (useTaken)
+            return map->numFreeEntries(type);
+        else
+            return mapBrS->numFreeEntries(type);
+    }
+}
+
+void
+RenameUnifiedRenameMap::initBrS()
+{
+    assert(NoBrS());
+    mapBrS = new UnifiedRenameMap(*map);
+    assert(map != mapBrS);
+    useTaken = true;
+    printMap();
+    printMapBrS();
+    // fatal("break point\n");
+}
+
+// remove mapBrS due to previous branch misprediction
+void
+RenameUnifiedRenameMap::squash(bool taken)
+{
+    assert(mapBrS);
+    printMap();
+    printMapBrS();
+    if (taken) {
+        DPRINTF(BranchS, "BranchS taken, swap two rename maps\n");
+        std::swap(map, mapBrS);
+    }
+    delete mapBrS;
+    mapBrS = nullptr;
+    printMap();
+}
+
+void
+SimpleRenameMap::printMap(PhysRegFile *regFile) const
+{
+    for (int i = 0; i < numArchRegs(); i++) {
+        DPRINTF(BranchS, "ArchReg[%i] => PhyReg[%i] = %#x\n",
+                i, map[i]->index(), regFile->getReg(map[i]));
+    }
+}
+
+void
+UnifiedRenameMap::printMap() const
+{
+    DPRINTF(BranchS, "Int Regs:\n");
+    renameMaps[IntRegClass].printMap(regFile);
+    DPRINTF(BranchS, "Float Regs:\n");
+    renameMaps[FloatRegClass].printMap(regFile);
+    DPRINTF(BranchS, "Vec Regs:\n");
+    renameMaps[VecElemClass].printMap(regFile);
+    DPRINTF(BranchS, "CC Regs:\n");
+    renameMaps[CCRegClass].printMap(regFile);
+}
+
+void
+RenameUnifiedRenameMap::printMap() const
+{
+    DPRINTF(BranchS, "Regular Rename Map:\n");
+    map->printMap();
+}
+
+void
+RenameUnifiedRenameMap::printMapBrS() const
+{
+    assert(mapBrS);
+    DPRINTF(BranchS, "BrS Rename Map:\n");
+    mapBrS->printMap();
 }
 
 } // namespace o3

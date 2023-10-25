@@ -1286,8 +1286,6 @@ IEW::executeInsts()
             if (inst->isCondCtrlS() && !loadNotExecuted) {
                 squashDueToBranchS(inst, tid);
             } else if (inst->isControl() && inst->mispredicted() && !loadNotExecuted) {
-                DPRINTF(BranchS, "[tid:%i] [sn:%llu] inst isDC: %i, inst is IDC: %i\n",
-                        tid, inst->seqNum, inst->isDirectCtrl(), inst->isIndirectCtrl());
                 fetchRedirect[tid] = true;
 
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
