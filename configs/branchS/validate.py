@@ -103,7 +103,7 @@ system.workload = SEWorkload.init_compatible(binary)
 process = Process()
 # Set the command
 # cmd is a list which begins with the executable (like argv)
-process.cmd = [binary, 'a', 'b', '/home/zeyu/Documents/gem5_101/Hw4/g_medium']
+process.cmd = [binary, 'a', 'b', '/home/zeyu/Documents/gem5_101/Hw4/g_small']
 # Set the cpu to use the process as its workload and create thread contexts
 system.cpu.workload = process
 system.cpu.createThreads()

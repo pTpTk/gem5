@@ -299,13 +299,12 @@ class RenameUnifiedRenameMap
   private:
     UnifiedRenameMap *map;
     UnifiedRenameMap *mapBrS;
-    mutable bool useTaken;
 
   public:
     typedef SimpleRenameMap::RenameInfo RenameInfo;
 
     /** Default constructor.  init() must be called prior to use. */
-    RenameUnifiedRenameMap() : map(nullptr), mapBrS(nullptr), useTaken(false) {};
+    RenameUnifiedRenameMap() : map(nullptr), mapBrS(nullptr) {};
 
     /** Destructor. */
     ~RenameUnifiedRenameMap() {};
@@ -324,7 +323,7 @@ class RenameUnifiedRenameMap
      * @return A RenameInfo pair indicating both the new and previous
      * physical registers.
      */
-    RenameInfo rename(const RegId& arch_reg);
+    RenameInfo rename(const RegId& arch_reg, bool taken);
 
     /**
      * Look up the physical register mapped to an architectural register.
@@ -333,7 +332,7 @@ class RenameUnifiedRenameMap
      * @param arch_reg The architectural register to look up.
      * @return The physical register it is currently mapped to.
      */
-    PhysRegIdPtr lookup(const RegId& arch_reg) const;
+    PhysRegIdPtr lookup(const RegId& arch_reg, bool taken) const;
 
     /**
      * Update rename map with a specific mapping.  Generally used to

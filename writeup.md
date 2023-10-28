@@ -126,3 +126,11 @@ Regular IEW squash removes all younger instructions in IQ and LDSTQ. This should
 2023/10/23
 ### Bug fix #1
 Gem5 uses the diff between the predicted PC and the actual next PC as misprediction. This leads to extra squashing in the presence of a branchS. So I bounded the check only to control instructions. There are two misprediction checks in the code: one in IEW, which handles BrS separately, and one upon a load, which only affects indirect controls. It took me a while to catch this one... 
+
+2023/10/24
+### Bug fix #2
+The design can't handle control after BranchS yet. A stall mechanism is added to fetch upon control after BranchS.
+
+2023/10/26
+### Bug fix #3
+Rename was not functioning correctly.

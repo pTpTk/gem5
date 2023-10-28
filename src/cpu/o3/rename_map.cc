@@ -136,11 +136,10 @@ RenameUnifiedRenameMap::canRename(DynInstPtr inst) const
     if (NoBrS()) {
         return map->canRename(inst);
     } else {
-        useTaken = !useTaken;
-        if (useTaken)
-                return map->canRename(inst);
-            else
+        if (inst->readPredS())
                 return mapBrS->canRename(inst);
+            else
+                return map->canRename(inst);
     }
 }
 
@@ -167,16 +166,19 @@ RenameUnifiedRenameMap::init(const BaseISA::RegClasses &regClasses,
  * physical registers.
  */
 RenameUnifiedRenameMap::RenameInfo
-RenameUnifiedRenameMap::rename(const RegId& arch_reg)
+RenameUnifiedRenameMap::rename(const RegId& arch_reg, bool taken)
 {
     if (NoBrS()) {
         return map->rename(arch_reg);
     } else {
-        useTaken = !useTaken;
-        if (useTaken)
-            return map->rename(arch_reg);
-        else
+        if (taken) {
+            DPRINTF(BranchS, "MapBrS rename reg[%i]\n", arch_reg);
             return mapBrS->rename(arch_reg);
+        }
+        else {
+            DPRINTF(BranchS, "Map rename reg[%i]\n", arch_reg);
+            return map->rename(arch_reg);
+        }
     }
 }
 
@@ -188,16 +190,19 @@ RenameUnifiedRenameMap::rename(const RegId& arch_reg)
  * @return The physical register it is currently mapped to.
  */
 PhysRegIdPtr
-RenameUnifiedRenameMap::lookup(const RegId& arch_reg) const
+RenameUnifiedRenameMap::lookup(const RegId& arch_reg, bool taken) const
 {
     if (NoBrS()) {
         return map->lookup(arch_reg);
     } else {
-        useTaken = !useTaken;
-        if (useTaken)
-            return map->lookup(arch_reg);
-        else
+        if (taken) {
+            DPRINTF(BranchS, "mapBrS lookup reg[%i]\n", arch_reg);
             return mapBrS->lookup(arch_reg);
+        }
+        else {
+            DPRINTF(BranchS, "map lookup reg[%i]\n", arch_reg);
+            return map->lookup(arch_reg);
+        }
     }
 }
 
@@ -236,29 +241,13 @@ RenameUnifiedRenameMap::setEntry(const RegId& arch_reg, PhysRegIdPtr phys_reg, b
 unsigned
 RenameUnifiedRenameMap::numFreeEntries() const
 {
-    if (NoBrS()) {
-        return map->numFreeEntries();
-    } else {
-        useTaken = !useTaken;
-        if (useTaken)
-            return map->numFreeEntries();
-        else
-            return mapBrS->numFreeEntries();
-    }
+    return map->numFreeEntries();
 }
 
 unsigned
 RenameUnifiedRenameMap::numFreeEntries(RegClassType type) const
 {
-    if (NoBrS()) {
-        return map->numFreeEntries(type);
-    } else {
-        useTaken = !useTaken;
-        if (useTaken)
-            return map->numFreeEntries(type);
-        else
-            return mapBrS->numFreeEntries(type);
-    }
+    return map->numFreeEntries(type);
 }
 
 void
@@ -267,7 +256,6 @@ RenameUnifiedRenameMap::initBrS()
     assert(NoBrS());
     mapBrS = new UnifiedRenameMap(*map);
     assert(map != mapBrS);
-    useTaken = true;
     printMap();
     printMapBrS();
     // fatal("break point\n");

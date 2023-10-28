@@ -1139,7 +1139,7 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
         const RegId flat_reg = src_reg.flatten(*isa);
         PhysRegIdPtr renamed_reg;
 
-        renamed_reg = map->lookup(flat_reg);
+        renamed_reg = map->lookup(flat_reg, inst->readPredS());
         switch (flat_reg.classValue()) {
           case InvalidRegClass:
             break;
@@ -1213,7 +1213,7 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         RegId flat_dest_regid = dest_reg.flatten(*isa);
         flat_dest_regid.setNumPinnedWrites(dest_reg.getNumPinnedWrites());
 
-        rename_result = map->rename(flat_dest_regid);
+        rename_result = map->rename(flat_dest_regid, inst->readPredS());
 
         inst->flattenedDestIdx(dest_idx, flat_dest_regid);
 
