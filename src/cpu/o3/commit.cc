@@ -926,12 +926,12 @@ Commit::squashBrS(ThreadID tid)
     // All younger instructions will be squashed. Set the sequence
     // number as the youngest instruction in the ROB.
     youngestSeqNum[tid] = squashed_inst;
-
     toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
 
     // squashBrS updates squashed_inst to the last valid instruction
-    // in ROB, and the inst is the endpoint for squashing but this 
-    // should not affect LSQ commits.
+    // in ROB, and the inst is the endpoint for squashing. Both the 
+    // SeqNum of the BranchS and the last inst are needed for squashing
+    // IQ and LSQ.
     rob->squashBrS(squashed_inst, fromIEW->branchTaken[tid], tid);
     changedROBNumEntries[tid] = true;
 

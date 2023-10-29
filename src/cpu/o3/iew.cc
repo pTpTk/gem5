@@ -412,6 +412,43 @@ IEW::squash(ThreadID tid)
 }
 
 void
+IEW::squashBrS(ThreadID tid)
+{
+    DPRINTF(BranchS, "[tid:%i] Squashing all instructions.\n", tid);
+
+    // Tell the IQ to start squashing.
+    instQueue.squash(tid);
+
+    // Tell the LDSTQ to start squashing.
+    ldstQueue.squashBrS(fromCommit->commitInfo[tid].squashSeqNum,
+                        fromCommit->commitInfo[tid].doneSeqNum,
+                        fromCommit->commitInfo[tid].branchTaken, tid);
+    updatedQueues = true;
+
+    // Clear the skid buffer in case it has any data in it.
+    DPRINTF(BranchS,
+            "Removing skidbuffer instructions until "
+            "[sn:%llu] [tid:%i]\n",
+            fromCommit->commitInfo[tid].squashSeqNum, tid);
+
+    while (!skidBuffer[tid].empty()) {
+        if (skidBuffer[tid].front()->isLoad()) {
+            toRename->iewInfo[tid].dispatchedToLQ++;
+        }
+        if (skidBuffer[tid].front()->isStore() ||
+            skidBuffer[tid].front()->isAtomic()) {
+            toRename->iewInfo[tid].dispatchedToSQ++;
+        }
+
+        toRename->iewInfo[tid].dispatched++;
+
+        skidBuffer[tid].pop();
+    }
+
+    emptyRenameInsts(tid);
+}
+
+void
 IEW::squashDueToBranch(const DynInstPtr& inst, ThreadID tid)
 {
     DPRINTF(IEW, "[tid:%i] [sn:%llu] Squashing from a specific instruction,"
@@ -702,7 +739,11 @@ IEW::checkSignalsAndUpdate(ThreadID tid)
     //     check if squashing is not high.  Switch to running this cycle.
 
     if (fromCommit->commitInfo[tid].squash) {
-        squash(tid);
+        if (fromCommit->commitInfo[tid].squashBrS) {
+            squashBrS(tid);
+        }
+        else
+            squash(tid);
 
         if (dispatchStatus[tid] == Blocked ||
             dispatchStatus[tid] == Unblocking) {

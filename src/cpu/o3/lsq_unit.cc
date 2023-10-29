@@ -1032,6 +1032,122 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
     }
 }
 
+void
+LSQUnit::squashBrS(const InstSeqNum &squashed_num,
+                   const InstSeqNum &done_num, bool taken)
+{
+    DPRINTF(BranchS, "Squashing until [sn:%lli]!"
+            "(Loads:%i Stores:%i)\n", squashed_num, loadQueue.size(),
+            storeQueue.size());
+
+    while (loadQueue.size() != 0 &&
+            loadQueue.back().instruction()->seqNum > squashed_num) {
+        DPRINTF(LSQUnit,"Load Instruction PC %s squashed, "
+                "[sn:%lli]\n",
+                loadQueue.back().instruction()->pcState(),
+                loadQueue.back().instruction()->seqNum);
+
+        if (isStalled() && loadQueue.tail() == stallingLoadIdx) {
+            stalled = false;
+            stallingStoreIsn = 0;
+            stallingLoadIdx = 0;
+        }
+
+        // hardware transactional memory
+        // Squashing instructions can alter the transaction nesting depth
+        // and must be corrected before fetching resumes.
+        if (loadQueue.back().instruction()->isHtmStart())
+        {
+            htmStarts = (--htmStarts < 0) ? 0 : htmStarts;
+            DPRINTF(HtmCpu, ">> htmStarts-- (%d) : htmStops (%d)\n",
+              htmStarts, htmStops);
+        }
+        if (loadQueue.back().instruction()->isHtmStop())
+        {
+            htmStops = (--htmStops < 0) ? 0 : htmStops;
+            DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
+              htmStarts, htmStops);
+        }
+        // Clear the smart pointer to make sure it is decremented.
+        loadQueue.back().instruction()->setSquashed();
+        loadQueue.back().clear();
+
+        loadQueue.pop_back();
+        ++stats.squashedLoads;
+    }
+
+    // hardware transactional memory
+    // scan load queue (from oldest to youngest) for most recent valid htmUid
+    auto scan_it = loadQueue.begin();
+    uint64_t in_flight_uid = 0;
+    while (scan_it != loadQueue.end()) {
+        if (scan_it->instruction()->isHtmStart() &&
+            !scan_it->instruction()->isSquashed()) {
+            in_flight_uid = scan_it->instruction()->getHtmTransactionUid();
+            DPRINTF(HtmCpu, "loadQueue[%d]: found valid HtmStart htmUid=%u\n",
+                scan_it._idx, in_flight_uid);
+        }
+        scan_it++;
+    }
+    // If there's a HtmStart in the pipeline then use its htmUid,
+    // otherwise use the most recently committed uid
+    const auto& htm_cpt = cpu->tcBase(lsqID)->getHtmCheckpointPtr();
+    if (htm_cpt) {
+        const uint64_t old_local_htm_uid = htm_cpt->getHtmUid();
+        uint64_t new_local_htm_uid;
+        if (in_flight_uid > 0)
+            new_local_htm_uid = in_flight_uid;
+        else
+            new_local_htm_uid = lastRetiredHtmUid;
+
+        if (old_local_htm_uid != new_local_htm_uid) {
+            DPRINTF(HtmCpu, "flush: lastRetiredHtmUid=%u\n",
+                lastRetiredHtmUid);
+            DPRINTF(HtmCpu, "flush: resetting localHtmUid=%u\n",
+                new_local_htm_uid);
+
+            htm_cpt->setHtmUid(new_local_htm_uid);
+        }
+    }
+
+    if (memDepViolator && squashed_num < memDepViolator->seqNum) {
+        memDepViolator = NULL;
+    }
+
+    while (storeQueue.size() != 0 &&
+           storeQueue.back().instruction()->seqNum > squashed_num) {
+        // Instructions marked as can WB are already committed.
+        if (storeQueue.back().canWB()) {
+            break;
+        }
+
+        DPRINTF(LSQUnit,"Store Instruction PC %s squashed, "
+                "idx:%i [sn:%lli]\n",
+                storeQueue.back().instruction()->pcState(),
+                storeQueue.tail(), storeQueue.back().instruction()->seqNum);
+
+        // I don't think this can happen.  It should have been cleared
+        // by the stalling load.
+        if (isStalled() &&
+            storeQueue.back().instruction()->seqNum == stallingStoreIsn) {
+            panic("Is stalled should have been cleared by stalling load!\n");
+            stalled = false;
+            stallingStoreIsn = 0;
+        }
+
+        // Clear the smart pointer to make sure it is decremented.
+        storeQueue.back().instruction()->setSquashed();
+
+        // Must delete request now that it wasn't handed off to
+        // memory.  This is quite ugly.  @todo: Figure out the proper
+        // place to really handle request deletes.
+        storeQueue.back().clear();
+
+        storeQueue.pop_back();
+        ++stats.squashedStores;
+    }
+}
+
 uint64_t
 LSQUnit::getLatestHtmUid() const
 {

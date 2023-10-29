@@ -289,14 +289,14 @@ SimpleRenameMap::printMap(PhysRegFile *regFile) const
 void
 UnifiedRenameMap::printMap() const
 {
-    DPRINTF(BranchS, "Int Regs:\n");
-    renameMaps[IntRegClass].printMap(regFile);
-    DPRINTF(BranchS, "Float Regs:\n");
-    renameMaps[FloatRegClass].printMap(regFile);
-    DPRINTF(BranchS, "Vec Regs:\n");
-    renameMaps[VecElemClass].printMap(regFile);
-    DPRINTF(BranchS, "CC Regs:\n");
-    renameMaps[CCRegClass].printMap(regFile);
+    // DPRINTF(BranchS, "Int Regs:\n");
+    // renameMaps[IntRegClass].printMap(regFile);
+    // DPRINTF(BranchS, "Float Regs:\n");
+    // renameMaps[FloatRegClass].printMap(regFile);
+    // DPRINTF(BranchS, "Vec Regs:\n");
+    // renameMaps[VecElemClass].printMap(regFile);
+    // DPRINTF(BranchS, "CC Regs:\n");
+    // renameMaps[CCRegClass].printMap(regFile);
 }
 
 void

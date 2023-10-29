@@ -715,6 +715,7 @@ class LSQ
      * Squash instructions from a thread until the specified sequence number.
      */
     void squash(const InstSeqNum &squashed_num, ThreadID tid);
+    void squashBrS(const InstSeqNum&, const InstSeqNum&, ThreadID);
 
     /** Returns whether or not there was a memory ordering violation. */
     bool violation();
