@@ -1040,8 +1040,18 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
             "(Loads:%i Stores:%i)\n", squashed_num, loadQueue.size(),
             storeQueue.size());
 
+    std::vector<LQEntry> tmp_lq;
+
     while (loadQueue.size() != 0 &&
-            loadQueue.back().instruction()->seqNum > squashed_num) {
+           loadQueue.back().instruction()->seqNum > squashed_num) {
+        auto& lq_entry = loadQueue.back();
+
+        if (lq_entry.instruction()->readPredS() == taken) {
+            tmp_lq.push_back(lq_entry);
+            loadQueue.pop_back();
+            continue;
+        }
+        
         DPRINTF(LSQUnit,"Load Instruction PC %s squashed, "
                 "[sn:%lli]\n",
                 loadQueue.back().instruction()->pcState(),
@@ -1075,6 +1085,12 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
         loadQueue.pop_back();
         ++stats.squashedLoads;
     }
+
+    for (auto& lqe : tmp_lq) {
+        loadQueue.push_back(lqe);
+    }
+
+    tmp_lq.clear();
 
     // hardware transactional memory
     // scan load queue (from oldest to youngest) for most recent valid htmUid
@@ -1114,8 +1130,22 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
         memDepViolator = NULL;
     }
 
+    if (memDepViolator)
+        fatal("need to handle this");
+
+    std::vector<SQEntry> tmp_sq;
+
     while (storeQueue.size() != 0 &&
-           storeQueue.back().instruction()->seqNum > squashed_num) {
+           storeQueue.back().instruction()->seqNum > done_num) {
+
+        auto& sq_entry = storeQueue.back();
+
+        if (sq_entry.instruction()->readPredS() == taken) {
+            tmp_sq.push_back(sq_entry);
+            storeQueue.pop_back();
+            continue;
+        }
+
         // Instructions marked as can WB are already committed.
         if (storeQueue.back().canWB()) {
             break;
@@ -1146,6 +1176,12 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
         storeQueue.pop_back();
         ++stats.squashedStores;
     }
+
+    for (auto& sqe : tmp_sq) {
+        storeQueue.push_back(sqe);
+    }
+
+    tmp_sq.clear();
 }
 
 uint64_t

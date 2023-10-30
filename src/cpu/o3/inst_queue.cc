@@ -1182,6 +1182,23 @@ InstructionQueue::squash(ThreadID tid)
 }
 
 void
+InstructionQueue::squashBrS(ThreadID tid)
+{
+    DPRINTF(IQ, "[tid:%i] Starting to squash instructions in "
+            "the IQ.\n", tid);
+
+    // Read instruction sequence number of last instruction out of the
+    // time buffer.
+    squashedSeqNum[tid] = fromCommit->commitInfo[tid].doneSeqNum;
+
+    doSquashBrS(fromCommit->commitInfo[tid].branchTaken, tid);
+
+    // Also tell the memory dependence unit to squash.
+    memDepUnit[tid].squashBrS(squashedSeqNum[tid],
+                              fromCommit->commitInfo[tid].branchTaken, tid);
+}
+
+void
 InstructionQueue::doSquash(ThreadID tid)
 {
     // Start at the tail.
@@ -1195,6 +1212,153 @@ InstructionQueue::doSquash(ThreadID tid)
     // given.
     while (squash_it != instList[tid].end() &&
            (*squash_it)->seqNum > squashedSeqNum[tid]) {
+
+        DynInstPtr squashed_inst = (*squash_it);
+        if (squashed_inst->isFloating()) {
+            iqIOStats.fpInstQueueWrites++;
+        } else if (squashed_inst->isVector()) {
+            iqIOStats.vecInstQueueWrites++;
+        } else {
+            iqIOStats.intInstQueueWrites++;
+        }
+
+        // Only handle the instruction if it actually is in the IQ and
+        // hasn't already been squashed in the IQ.
+        if (squashed_inst->threadNumber != tid ||
+            squashed_inst->isSquashedInIQ()) {
+            --squash_it;
+            continue;
+        }
+
+        if (!squashed_inst->isIssued() ||
+            (squashed_inst->isMemRef() &&
+             !squashed_inst->memOpDone())) {
+
+            DPRINTF(IQ, "[tid:%i] Instruction [sn:%llu] PC %s squashed.\n",
+                    tid, squashed_inst->seqNum, squashed_inst->pcState());
+
+            bool is_acq_rel = squashed_inst->isFullMemBarrier() &&
+                         (squashed_inst->isLoad() ||
+                          (squashed_inst->isStore() &&
+                             !squashed_inst->isStoreConditional()));
+
+            // Remove the instruction from the dependency list.
+            if (is_acq_rel ||
+                (!squashed_inst->isNonSpeculative() &&
+                 !squashed_inst->isStoreConditional() &&
+                 !squashed_inst->isAtomic() &&
+                 !squashed_inst->isReadBarrier() &&
+                 !squashed_inst->isWriteBarrier())) {
+
+                for (int src_reg_idx = 0;
+                     src_reg_idx < squashed_inst->numSrcRegs();
+                     src_reg_idx++)
+                {
+                    PhysRegIdPtr src_reg =
+                        squashed_inst->renamedSrcIdx(src_reg_idx);
+
+                    // Only remove it from the dependency graph if it
+                    // was placed there in the first place.
+
+                    // Instead of doing a linked list traversal, we
+                    // can just remove these squashed instructions
+                    // either at issue time, or when the register is
+                    // overwritten.  The only downside to this is it
+                    // leaves more room for error.
+
+                    if (!squashed_inst->readySrcIdx(src_reg_idx) &&
+                        !src_reg->isFixedMapping()) {
+                        dependGraph.remove(src_reg->flatIndex(),
+                                           squashed_inst);
+                    }
+
+                    ++iqStats.squashedOperandsExamined;
+                }
+
+            } else if (!squashed_inst->isStoreConditional() ||
+                       !squashed_inst->isCompleted()) {
+                NonSpecMapIt ns_inst_it =
+                    nonSpecInsts.find(squashed_inst->seqNum);
+
+                // we remove non-speculative instructions from
+                // nonSpecInsts already when they are ready, and so we
+                // cannot always expect to find them
+                if (ns_inst_it == nonSpecInsts.end()) {
+                    // loads that became ready but stalled on a
+                    // blocked cache are alreayd removed from
+                    // nonSpecInsts, and have not faulted
+                    assert(squashed_inst->getFault() != NoFault ||
+                           squashed_inst->isMemRef());
+                } else {
+
+                    (*ns_inst_it).second = NULL;
+
+                    nonSpecInsts.erase(ns_inst_it);
+
+                    ++iqStats.squashedNonSpecRemoved;
+                }
+            }
+
+            // Might want to also clear out the head of the dependency graph.
+
+            // Mark it as squashed within the IQ.
+            squashed_inst->setSquashedInIQ();
+
+            // @todo: Remove this hack where several statuses are set so the
+            // inst will flow through the rest of the pipeline.
+            squashed_inst->setIssued();
+            squashed_inst->setCanCommit();
+            squashed_inst->clearInIQ();
+
+            //Update Thread IQ Count
+            count[squashed_inst->threadNumber]--;
+
+            ++freeEntries;
+        }
+
+        // IQ clears out the heads of the dependency graph only when
+        // instructions reach writeback stage. If an instruction is squashed
+        // before writeback stage, its head of dependency graph would not be
+        // cleared out; it holds the instruction's DynInstPtr. This
+        // prevents freeing the squashed instruction's DynInst.
+        // Thus, we need to manually clear out the squashed instructions'
+        // heads of dependency graph.
+        for (int dest_reg_idx = 0;
+             dest_reg_idx < squashed_inst->numDestRegs();
+             dest_reg_idx++)
+        {
+            PhysRegIdPtr dest_reg =
+                squashed_inst->renamedDestIdx(dest_reg_idx);
+            if (dest_reg->isFixedMapping()){
+                continue;
+            }
+            assert(dependGraph.empty(dest_reg->flatIndex()));
+            dependGraph.clearInst(dest_reg->flatIndex());
+        }
+        instList[tid].erase(squash_it--);
+        ++iqStats.squashedInstsExamined;
+    }
+}
+
+void
+InstructionQueue::doSquashBrS(bool taken, ThreadID tid)
+{
+    // Start at the tail.
+    ListIt squash_it = instList[tid].end();
+    --squash_it;
+
+    DPRINTF(IQ, "[tid:%i] Squashing until sequence number %i!\n",
+            tid, squashedSeqNum[tid]);
+
+    // Squash any instructions younger than the squashed sequence number
+    // given.
+    while (squash_it != instList[tid].end() &&
+           (*squash_it)->seqNum > squashedSeqNum[tid]) {
+        
+        if ((*squash_it)->readPredS() == taken) {
+            --squash_it;
+            continue;
+        }
 
         DynInstPtr squashed_inst = (*squash_it);
         if (squashed_inst->isFloating()) {

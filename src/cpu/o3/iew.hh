@@ -167,6 +167,7 @@ class IEW
 
     /** Squashes instructions in IEW for a specific thread. */
     void squash(ThreadID tid);
+    void squashBrS(ThreadID tid);
 
     /** Wakes all dependents of a completed instruction. */
     void wakeDependents(const DynInstPtr &inst);

@@ -150,6 +150,7 @@ class MemDepUnit
      *  specific thread.
      */
     void squash(const InstSeqNum &squashed_num, ThreadID tid);
+    void squashBrS(const InstSeqNum &squashed_num, bool taken, ThreadID tid);
 
     /** Indicates an ordering violation between a store and a younger load. */
     void violation(const DynInstPtr &store_inst,

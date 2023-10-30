@@ -287,7 +287,7 @@ LSQ::squash(const InstSeqNum &squashed_num, ThreadID tid)
 
 void
 LSQ::squashBrS(const InstSeqNum &squashed_num,
-               const InstSeqNum done_num,
+               const InstSeqNum &done_num,
                bool taken, ThreadID tid)
 {
     thread.at(tid).squashBrS(squashed_num, done_num, taken);

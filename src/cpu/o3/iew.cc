@@ -417,7 +417,7 @@ IEW::squashBrS(ThreadID tid)
     DPRINTF(BranchS, "[tid:%i] Squashing all instructions.\n", tid);
 
     // Tell the IQ to start squashing.
-    instQueue.squash(tid);
+    instQueue.squashBrS(tid);
 
     // Tell the LDSTQ to start squashing.
     ldstQueue.squashBrS(fromCommit->commitInfo[tid].squashSeqNum,

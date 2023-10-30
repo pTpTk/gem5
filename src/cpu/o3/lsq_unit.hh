@@ -283,6 +283,7 @@ class LSQUnit
 
     /** Squashes all instructions younger than a specific sequence number. */
     void squash(const InstSeqNum &squashed_num);
+    void squashBrS(const InstSeqNum&, const InstSeqNum&, bool);
 
     /** Returns if there is a memory ordering violation. Value is reset upon
      * call to getMemDepViolator().

@@ -568,6 +568,62 @@ MemDepUnit::squash(const InstSeqNum &squashed_num, ThreadID tid)
 }
 
 void
+MemDepUnit::squashBrS(const InstSeqNum &squashed_num, bool taken, ThreadID tid)
+{
+    if (!instsToReplay.empty()) {
+        ListIt replay_it = instsToReplay.begin();
+        while (replay_it != instsToReplay.end()) {
+            if ((*replay_it)->threadNumber == tid &&
+                (*replay_it)->seqNum > squashed_num &&
+                (*replay_it)->readPredS() != taken) {
+                instsToReplay.erase(replay_it++);
+            } else {
+                ++replay_it;
+            }
+        }
+    }
+
+    ListIt squash_it = instList[tid].end();
+    --squash_it;
+
+    MemDepHashIt hash_it;
+
+    while (squash_it != instList[tid].end() &&
+           (*squash_it)->seqNum > squashed_num) {
+
+        if ((*squash_it)->readPredS() == taken) {
+            --squash_it;
+            continue;
+        }
+
+        DPRINTF(MemDepUnit, "Squashing inst [sn:%lli]\n",
+                (*squash_it)->seqNum);
+
+        loadBarrierSNs.erase((*squash_it)->seqNum);
+
+        storeBarrierSNs.erase((*squash_it)->seqNum);
+
+        hash_it = memDepHash.find((*squash_it)->seqNum);
+
+        assert(hash_it != memDepHash.end());
+
+        (*hash_it).second->squashed = true;
+
+        (*hash_it).second = NULL;
+
+        memDepHash.erase(hash_it);
+#ifdef GEM5_DEBUG
+        MemDepEntry::memdep_erase++;
+#endif
+
+        instList[tid].erase(squash_it--);
+    }
+
+    // Tell the dependency predictor to squash as well.
+    depPred.squash(squashed_num, tid);
+}
+
+void
 MemDepUnit::violation(const DynInstPtr &store_inst,
         const DynInstPtr &violating_load)
 {

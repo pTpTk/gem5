@@ -270,6 +270,7 @@ class InstructionQueue
      * from the time buffer.
      */
     void squash(ThreadID tid);
+    void squashBrS(ThreadID tid);
 
     /** Returns the number of used entries for a thread. */
     unsigned getCount(ThreadID tid) { return count[tid]; };
@@ -280,6 +281,7 @@ class InstructionQueue
   private:
     /** Does the actual squashing. */
     void doSquash(ThreadID tid);
+    void doSquashBrS(bool taken, ThreadID tid);
 
     /////////////////////////
     // Various pointers
