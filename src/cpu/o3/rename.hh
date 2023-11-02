@@ -189,7 +189,7 @@ class Rename
 
     /** Squashes all instructions in a thread. */
     void squash(const InstSeqNum &squash_seq_num, ThreadID tid);
-    void squashBrS(const InstSeqNum &squash_seq_num, bool taken, ThreadID tid);
+    void squashBrS(const InstSeqNum&, const InstSeqNum&, bool, ThreadID);
 
     /** Ticks rename, which processes all input signals and attempts to rename
      * as many instructions as possible.
@@ -245,7 +245,7 @@ class Rename
 
     /** Executes actual squash, removing squashed instructions. */
     void doSquash(const InstSeqNum &squash_seq_num, ThreadID tid);
-    void doSquashBrS(const InstSeqNum &squash_seq_num, ThreadID tid);
+    void doSquashBrS(const InstSeqNum&, const InstSeqNum&, bool, ThreadID);
 
     /** Removes a committed instruction's rename history. */
     void removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid);
@@ -381,8 +381,8 @@ class Rename
 
     // Is branchS in progress?
     bool branchSInProgress[MaxThreads];
-    // Which branch is this inst on?
-    bool branchSTaken[MaxThreads];
+    // branchS seq num
+    InstSeqNum BrSSeqNum[MaxThreads];
 
     /** Count of instructions in progress that have been sent off to the IQ
      * and ROB, but are not yet included in their occupancy counts.

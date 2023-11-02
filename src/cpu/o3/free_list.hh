@@ -52,6 +52,7 @@
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/regfile.hh"
 #include "debug/FreeList.hh"
+#include "debug/BranchS.hh"
 
 namespace gem5
 {
@@ -68,12 +69,25 @@ class UnifiedRenameMap;
  * architectural register index parameters and values in this class
  * are relative (e.g., %fp2 is just index 2).
  */
+template<typename T, typename Container=std::deque<T> >
+class iterable_queue : public std::queue<T,Container>
+{
+public:
+    typedef typename Container::iterator iterator;
+    typedef typename Container::const_iterator const_iterator;
+
+    iterator begin() { return this->c.begin(); }
+    iterator end() { return this->c.end(); }
+    const_iterator begin() const { return this->c.begin(); }
+    const_iterator end() const { return this->c.end(); }
+};
+
 class SimpleFreeList
 {
   private:
 
     /** The actual free list */
-    std::queue<PhysRegIdPtr> freeRegs;
+    iterable_queue<PhysRegIdPtr> freeRegs;
 
   public:
 
@@ -105,6 +119,7 @@ class SimpleFreeList
 
     /** True iff there are free registers on the list. */
     bool hasFreeRegs() const { return !freeRegs.empty(); }
+
 };
 
 

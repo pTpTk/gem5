@@ -52,6 +52,7 @@
 #include "debug/IEW.hh"
 #include "debug/LSQUnit.hh"
 #include "debug/O3PipeView.hh"
+#include "debug/BranchS.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 
@@ -1040,22 +1041,66 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
             "(Loads:%i Stores:%i)\n", squashed_num, loadQueue.size(),
             storeQueue.size());
 
-    std::vector<LQEntry> tmp_lq;
+    int first_invalid(loadQueue.tail());
+    int last_valid(loadQueue.head());
+
+    DPRINTF(BranchS, "LQ before:\n");
+    for (int i = loadQueue.head(); i <= loadQueue.tail(); ++i) {
+        DPRINTF(BranchS, "[sn:%llu] [req:%p] taken: %d\n",
+                loadQueue[i].instruction()->seqNum,
+                loadQueue[i].request(),
+                loadQueue[i].instruction()->readPredS());
+    }
+
+    for (int i = loadQueue.head(); i <= loadQueue.tail(); ++i) {
+        if (loadQueue[i].instruction()->seqNum > done_num && 
+            loadQueue[i].instruction()->readPredS() != taken) {
+            first_invalid = i;
+            break;
+        }
+    }
+
+    for (int i = loadQueue.tail(); i >= loadQueue.head(); --i) {
+        if (loadQueue[i].instruction()->seqNum > done_num &&
+            loadQueue[i].instruction()->seqNum <= squashed_num &&
+            loadQueue[i].instruction()->readPredS() == taken) {
+            last_valid = i;
+            break;
+        }
+    }
+
+    while (first_invalid < last_valid) {
+        for (int i = last_valid; i > first_invalid; --i) {
+            if (loadQueue[i].instruction()->readPredS() == taken &&
+                loadQueue[i-1].instruction()->readPredS() != taken) {
+                std::swap(loadQueue[i], loadQueue[i-1]);
+                if (i == last_valid) --last_valid;
+                if (i-1 == first_invalid) ++first_invalid;
+            }
+        }
+    }
+
+    DPRINTF(BranchS, "LQ reordered:\n");
+    for (int i = loadQueue.head(); i <= loadQueue.tail(); ++i) {
+        DPRINTF(BranchS, "[sn:%llu] [req:%p] taken: %d\n",
+                loadQueue[i].instruction()->seqNum,
+                loadQueue[i].request(),
+                loadQueue[i].instruction()->readPredS());
+    }
 
     while (loadQueue.size() != 0 &&
-           loadQueue.back().instruction()->seqNum > squashed_num) {
+           loadQueue.back().instruction()->seqNum > done_num) {
         auto& lq_entry = loadQueue.back();
 
-        if (lq_entry.instruction()->readPredS() == taken) {
-            tmp_lq.push_back(lq_entry);
-            loadQueue.pop_back();
-            continue;
+        if (lq_entry.instruction()->seqNum <= squashed_num &&
+            lq_entry.instruction()->readPredS() == taken) {
+            break;
         }
         
         DPRINTF(LSQUnit,"Load Instruction PC %s squashed, "
                 "[sn:%lli]\n",
-                loadQueue.back().instruction()->pcState(),
-                loadQueue.back().instruction()->seqNum);
+                lq_entry.instruction()->pcState(),
+                lq_entry.instruction()->seqNum);
 
         if (isStalled() && loadQueue.tail() == stallingLoadIdx) {
             stalled = false;
@@ -1066,31 +1111,33 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
         // hardware transactional memory
         // Squashing instructions can alter the transaction nesting depth
         // and must be corrected before fetching resumes.
-        if (loadQueue.back().instruction()->isHtmStart())
+        if (lq_entry.instruction()->isHtmStart())
         {
             htmStarts = (--htmStarts < 0) ? 0 : htmStarts;
             DPRINTF(HtmCpu, ">> htmStarts-- (%d) : htmStops (%d)\n",
               htmStarts, htmStops);
         }
-        if (loadQueue.back().instruction()->isHtmStop())
+        if (lq_entry.instruction()->isHtmStop())
         {
             htmStops = (--htmStops < 0) ? 0 : htmStops;
             DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
               htmStarts, htmStops);
         }
         // Clear the smart pointer to make sure it is decremented.
-        loadQueue.back().instruction()->setSquashed();
-        loadQueue.back().clear();
+        lq_entry.instruction()->setSquashed();
+        lq_entry.clear();
 
         loadQueue.pop_back();
         ++stats.squashedLoads;
     }
 
-    for (auto& lqe : tmp_lq) {
-        loadQueue.push_back(lqe);
+    DPRINTF(BranchS, "LQ after:\n");
+    for (int i = loadQueue.head(); i <= loadQueue.tail(); ++i) {
+        DPRINTF(BranchS, "[sn:%llu] [req:%p] taken: %d\n",
+                loadQueue[i].instruction()->seqNum,
+                loadQueue[i].request(),
+                loadQueue[i].instruction()->readPredS());
     }
-
-    tmp_lq.clear();
 
     // hardware transactional memory
     // scan load queue (from oldest to youngest) for most recent valid htmUid
@@ -1133,55 +1180,76 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
     if (memDepViolator)
         fatal("need to handle this");
 
-    std::vector<SQEntry> tmp_sq;
+    first_invalid = storeQueue.tail();
+    last_valid = storeQueue.head();
+
+    for (int i = storeQueue.head(); i <= storeQueue.tail(); ++i) {
+        if (storeQueue[i].instruction()->seqNum > done_num && 
+            storeQueue[i].instruction()->readPredS() != taken) {
+            first_invalid = i;
+            break;
+        }
+    }
+
+    for (int i = storeQueue.tail(); i >= storeQueue.head(); --i) {
+        if (storeQueue[i].instruction()->seqNum > done_num &&
+            storeQueue[i].instruction()->seqNum <= squashed_num &&
+            storeQueue[i].instruction()->readPredS() == taken) {
+            last_valid = i;
+            break;
+        }
+    }
+
+    while (first_invalid < last_valid) {
+        for (int i = last_valid; i > first_invalid; --i) {
+            if (storeQueue[i].instruction()->readPredS() == taken &&
+                storeQueue[i-1].instruction()->readPredS() != taken) {
+                std::swap(storeQueue[i], storeQueue[i-1]);
+                if (i == last_valid) --last_valid;
+                if (i-1 == first_invalid) ++first_invalid;
+            }
+        }
+    }
 
     while (storeQueue.size() != 0 &&
            storeQueue.back().instruction()->seqNum > done_num) {
-
         auto& sq_entry = storeQueue.back();
 
-        if (sq_entry.instruction()->readPredS() == taken) {
-            tmp_sq.push_back(sq_entry);
-            storeQueue.pop_back();
-            continue;
+        if (sq_entry.instruction()->seqNum <= squashed_num &&
+            sq_entry.instruction()->readPredS() == taken) {
+            break;
         }
 
         // Instructions marked as can WB are already committed.
-        if (storeQueue.back().canWB()) {
+        if (sq_entry.canWB()) {
             break;
         }
 
         DPRINTF(LSQUnit,"Store Instruction PC %s squashed, "
                 "idx:%i [sn:%lli]\n",
-                storeQueue.back().instruction()->pcState(),
-                storeQueue.tail(), storeQueue.back().instruction()->seqNum);
+                sq_entry.instruction()->pcState(),
+                storeQueue.tail(), sq_entry.instruction()->seqNum);
 
         // I don't think this can happen.  It should have been cleared
         // by the stalling load.
         if (isStalled() &&
-            storeQueue.back().instruction()->seqNum == stallingStoreIsn) {
+            sq_entry.instruction()->seqNum == stallingStoreIsn) {
             panic("Is stalled should have been cleared by stalling load!\n");
             stalled = false;
             stallingStoreIsn = 0;
         }
 
         // Clear the smart pointer to make sure it is decremented.
-        storeQueue.back().instruction()->setSquashed();
+        sq_entry.instruction()->setSquashed();
 
         // Must delete request now that it wasn't handed off to
         // memory.  This is quite ugly.  @todo: Figure out the proper
         // place to really handle request deletes.
-        storeQueue.back().clear();
+        sq_entry.clear();
 
         storeQueue.pop_back();
         ++stats.squashedStores;
     }
-
-    for (auto& sqe : tmp_sq) {
-        storeQueue.push_back(sqe);
-    }
-
-    tmp_sq.clear();
 }
 
 uint64_t

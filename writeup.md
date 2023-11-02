@@ -134,3 +134,14 @@ The design can't handle control after BranchS yet. A stall mechanism is added to
 2023/10/26
 ### Bug fix #3
 Rename was not functioning correctly.
+
+2023/10/30
+### Bug fix #4
+LSQ needed to squash instructions all the way till the branchS instruction.
+
+### Bug fix #5
+Rename needs to squash till branchS to recycle new renamed phy regs.
+
+2023/11/01
+### Bug fix #6
+LSQ entry implementation issues.

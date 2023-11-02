@@ -571,6 +571,7 @@ namespace gem5
 
                 fetchBranchSStatus[tid].branchS = true;
                 fetchBranchSStatus[tid].branchSTaken = true;
+                fetchBranchSStatus[tid].seqNum = inst->seqNum;
 
                 set(fetchBranchSStatus[tid].nextTaken, next_pc);
                 inst->staticInst->advancePC(*(fetchBranchSStatus[tid].nextNTaken));
@@ -830,10 +831,6 @@ namespace gem5
                 retryTid = InvalidThreadID;
             }
 
-            if (fetchStatus[tid] == BlockedBrS) {
-                fatal("can't handle this yet");
-            }
-
             fetchStatus[tid] = Squashing;
 
             // Empty fetch queue
@@ -847,11 +844,6 @@ namespace gem5
             delayedCommit[tid] = true;
 
             ++fetchStats.squashCycles;
-
-            if (stalls[tid].branchS)
-            {
-                fatal("branchS stall encountered");
-            }
         }
 
         void
@@ -993,6 +985,9 @@ namespace gem5
 
             // Tell the CPU to remove any instructions that are not in the ROB.
             cpu->removeInstsNotInROB(tid);
+
+            assert(seq_num < fetchBranchSStatus[tid].seqNum);
+            fetchBranchSStatus[tid].reset();
         }
 
         void

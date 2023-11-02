@@ -190,9 +190,10 @@ class Fetch
         bool branchSTaken;
         std::unique_ptr<PCStateBase> nextTaken;
         std::unique_ptr<PCStateBase> nextNTaken;
+        InstSeqNum seqNum;
 
         FetchBranchSStatus()
-        : branchS(false), branchSTaken(false)
+        : branchS(false), branchSTaken(false), seqNum(-1)
         {}
 
         void reset()
@@ -200,6 +201,7 @@ class Fetch
             branchS = branchSTaken = false;
             nextTaken.reset(nullptr);
             nextNTaken.reset(nullptr);
+            seqNum = -1;
         }
     };
 
