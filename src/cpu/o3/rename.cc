@@ -398,7 +398,7 @@ Rename::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
         assert(BrSSeqNum[tid] > squash_seq_num);
         DPRINTF(BranchS, "[tid:%i] [sn:%llu] squashing while BrS [sn:%llu] in progress\n",
                 tid, squash_seq_num, BrSSeqNum[tid]);
-        renameMap[tid]->squash(true);
+        renameMap[tid]->squash(false);
         branchSInProgress[tid] = false;
     }
 }
@@ -1239,9 +1239,8 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         if (branchSInProgress[tid])
         DPRINTF(BranchS,
                 "[tid:%i] [sn:%i] [pc:%s] "
-                "Renaming arch reg %i (%s) to physical reg %i (%i).\n",
+                "Renaming arch reg %i (%s) to physical reg %i.\n",
                 tid, inst->seqNum, inst->pcState(), dest_reg.index(), dest_reg.className(),
-                rename_result.first->index(),
                 rename_result.first->flatIndex());
 
         // Record the rename information so that a history can be kept.

@@ -99,7 +99,7 @@ SimpleRenameMap::rename(const RegId& arch_reg)
 
     DPRINTF(Rename, "Renamed reg %d (%s) to physical reg %d, old mapping was"
             " %d\n",
-            arch_reg, arch_reg.className(), renamed_reg->flatIndex(),
+            arch_reg.index(), arch_reg.className(), renamed_reg->flatIndex(),
             prev_reg->flatIndex());
 
     return RenameInfo(renamed_reg, prev_reg);

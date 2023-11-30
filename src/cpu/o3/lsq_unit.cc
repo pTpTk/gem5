@@ -1068,10 +1068,12 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
 
     DPRINTF(BranchS, "LQ before:\n");
     for (int i = loadQueue.head(); i <= loadQueue.tail(); ++i) {
-        DPRINTF(BranchS, "lq[%i] [req:%p] valid: %d\n",
+        DPRINTF(BranchS, "lq[%i] [req:%p] valid: %d [sn:%llu] taken: %d\n",
                 i,
                 loadQueue[i].request(),
-                loadQueue[i].valid());
+                loadQueue[i].valid(),
+                loadQueue[i].instruction()->seqNum,
+                loadQueue[i].instruction()->readPredS());
     }
 
     // for (int i = loadQueue.head(); i <= loadQueue.tail(); ++i) {
@@ -1233,6 +1235,16 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
     //     }
     // }
 
+    DPRINTF(BranchS, "SQ before:\n");
+    for (int i = storeQueue.head(); i <= storeQueue.tail(); ++i) {
+        DPRINTF(BranchS, "sq[%i] [req:%p] valid: %d [sn:%llu] taken: %d\n",
+                i,
+                storeQueue[i].request(),
+                storeQueue[i].valid(),
+                storeQueue[i].instruction()->seqNum,
+                storeQueue[i].instruction()->readPredS());
+    }
+
     for (int i = storeQueue.tail(); i >= storeQueue.head(); --i) {
         auto& sq_entry = storeQueue[i];
 
@@ -1268,6 +1280,14 @@ LSQUnit::squashBrS(const InstSeqNum &squashed_num,
         // place to really handle request deletes.
 
         ++stats.squashedStores;
+    }
+
+    DPRINTF(BranchS, "SQ after:\n");
+    for (int i = storeQueue.head(); i <= storeQueue.tail(); ++i) {
+        DPRINTF(BranchS, "sq[%i] [req:%p] valid: %d\n",
+                i,
+                storeQueue[i].request(),
+                storeQueue[i].valid());
     }
 }
 

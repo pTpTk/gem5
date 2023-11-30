@@ -61,6 +61,8 @@ system.mem_ranges = [AddrRange("512MB")]  # Create an address range
 # `RiscvTimingSimpleCPU`, `ArmTimingSimpleCPU`.
 system.cpu = X86O3CPU()
 
+system.cpu.numIQEntries = 8
+
 # Create a memory bus, a system crossbar, in this case
 system.membus = SystemXBar()
 

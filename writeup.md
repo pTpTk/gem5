@@ -142,6 +142,6 @@ LSQ needed to squash instructions all the way till the branchS instruction.
 ### Bug fix #5
 Rename needs to squash till branchS to recycle new renamed phy regs.
 
-2023/11/01
+2023/11/02
 ### Bug fix #6
-LSQ entry implementation issues.
+LSQ entry implementation issues. LSQ can't just squash the BrS invalid instructions like the other queues as it needs to retain order and proper size and tail index. Currently I clear the entry during squashBrS and pop the entry when it's at the head of the LSQ. SQ also has a completed entry ptr that needed to be moved after pop_head.

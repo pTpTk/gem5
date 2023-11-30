@@ -556,10 +556,10 @@ namespace gem5
                 inst->setPredTarg(next_pc);
                 inst->setPredTaken(false);
 
-                if (inst->seqNum > 5603780)
-                {
-                    DPRINTF(BranchS, "[tid:%i] [sn:%lli] [pc:%s] next PC: %s\n", tid, inst->seqNum, inst->pcState(), next_pc);
-                }
+                // if (inst->seqNum > 5603780)
+                // {
+                //     DPRINTF(BranchS, "[tid:%i] [sn:%lli] [pc:%s] next PC: %s\n", tid, inst->seqNum, inst->pcState(), next_pc);
+                // }
                 return false;
             }
 
@@ -604,10 +604,10 @@ namespace gem5
                            "predicted to go to %s\n",
                     tid, inst->seqNum, inst->pcState().instAddr(), next_pc);
 
-            if (inst->seqNum > 5603780)
-            DPRINTF(BranchS, "[tid:%i] [sn:%llu] [pc:%s] Branch at PC %#x "
-                           "predicted to go to %s\n",
-                    tid, inst->seqNum, inst->pcState(), inst->pcState().instAddr(), next_pc);
+            // if (inst->seqNum > 5603780)
+            // DPRINTF(BranchS, "[tid:%i] [sn:%llu] [pc:%s] Branch at PC %#x "
+            //                "predicted to go to %s\n",
+            //         tid, inst->seqNum, inst->pcState(), inst->pcState().instAddr(), next_pc);
 
             inst->setPredTarg(next_pc);
             inst->setPredTaken(predict_taken);

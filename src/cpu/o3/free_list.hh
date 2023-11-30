@@ -93,8 +93,29 @@ class SimpleFreeList
 
     SimpleFreeList() {};
 
+    void checkDuplicate(PhysRegIdPtr reg)
+    {
+        for (auto fr : freeRegs) {
+            if (fr == reg) {
+                DPRINTF(BranchS, "found duplicated reg %d (%s) in free list\n",
+                       reg->flatIndex(), reg->className());
+                fatal("no.......");
+            }
+        }
+    }
+    
+    void print(bool en)
+    {
+        if (en) {
+            DPRINTF(BranchS, "freelist: ");
+            for (auto fr : freeRegs)
+                printf("%d ", fr->flatIndex());
+            printf("\n");
+        }
+    }
+
     /** Add a physical register to the free list */
-    void addReg(PhysRegIdPtr reg) { freeRegs.push(reg); }
+    void addReg(PhysRegIdPtr reg) { checkDuplicate(reg); freeRegs.push(reg); }
 
     /** Add physical registers to the free list */
     template<class InputIt>
@@ -188,6 +209,8 @@ class UnifiedFreeList
     void
     addReg(PhysRegIdPtr freed_reg)
     {
+        DPRINTF(BranchS, "add reg %d (%s) to free list\n", 
+                freed_reg->flatIndex(), freed_reg->className());
         freeLists[freed_reg->classValue()].addReg(freed_reg);
     }
 

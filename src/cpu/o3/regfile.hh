@@ -198,7 +198,8 @@ class PhysRegFile
                     idx, val);
             return val;
           default:
-            panic("Unsupported register class type %d.", type);
+            // panic("Unsupported register class type %d.", type);
+            return -1;
         }
     }
 

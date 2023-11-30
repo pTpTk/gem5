@@ -1443,9 +1443,10 @@ IEW::writebackInsts()
                 // Mark register as ready if not pinned
                 if (inst->renamedDestIdx(i)->
                         getNumPinnedWritesToComplete() == 0) {
-                    DPRINTF(IEW,"Setting Destination Register %i (%s)\n",
+                    DPRINTF(IEW,"Setting Destination Register %i (%s) = 0x%x\n",
                             inst->renamedDestIdx(i)->index(),
-                            inst->renamedDestIdx(i)->className());
+                            inst->renamedDestIdx(i)->className(),
+                            cpu->getReg(inst->renamedDestIdx(i),tid));
                     scoreboard->setReg(inst->renamedDestIdx(i));
                 }
             }
